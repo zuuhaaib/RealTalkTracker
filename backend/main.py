@@ -4,6 +4,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from parsers.whatsapp import parse_whatsapp_chat
+from parsers.instagram import parse_instagram_chat
 from analysis.statistics import get_basic_statistics
 from analysis.behavior import get_behavior_statistics
 from analysis.awards import get_awards
@@ -40,7 +41,7 @@ async def analyze_chat(file: UploadFile = File(...)):
     if not file.filename or not file.filename.endswith(".txt"):
         raise HTTPException(
             status_code=400,
-            detail="Please upload a .txt WhatsApp export."
+            detail="Please upload a .txt chat export."
         )
 
     contents = await file.read()
@@ -54,11 +55,16 @@ async def analyze_chat(file: UploadFile = File(...)):
         )
 
     messages = parse_whatsapp_chat(text)
+    platform = "whatsapp"
+
+    if not messages:
+        messages = parse_instagram_chat(text)
+        platform = "instagram"
 
     if not messages:
         raise HTTPException(
             status_code=400,
-            detail="No WhatsApp messages could be detected."
+            detail="No WhatsApp or Instagram messages could be detected."
         )
 
     stats = get_basic_statistics(messages)
@@ -66,6 +72,7 @@ async def analyze_chat(file: UploadFile = File(...)):
     awards = get_awards(stats, behavior)
     activity = get_activity_statistics(messages)
     text_stats = get_text_statistics(messages)
+
     sentiment = {}
     topics = []
 
@@ -79,6 +86,7 @@ async def analyze_chat(file: UploadFile = File(...)):
     )
 
     return {
+        "platform": platform,
         "messageCount": len(messages),
         "statistics": stats,
         "behavior": behavior,

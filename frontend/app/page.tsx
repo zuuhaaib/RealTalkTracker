@@ -102,6 +102,7 @@ type AIAnalysis = {
 };
 
 type AnalyzeResponse = {
+  platform: "whatsapp" | "instagram";
   messageCount: number;
 
   statistics: {
@@ -190,7 +191,7 @@ export default function Home() {
     if (!selectedFile) return;
 
     if (!selectedFile.name.toLowerCase().endsWith(".txt")) {
-      setError("whatsapp .txt files only pls");
+      setError("txt files only pls");
       return;
     }
 
@@ -313,7 +314,7 @@ export default function Home() {
             }}
           >
             <p className="mb-5 text-sm font-semibold text-yellow-400">
-              whatsapp analysis for people who overthink everything
+              whatsapp + instagram analysis for people who overthink everything
             </p>
 
             <h1 className="max-w-3xl text-5xl font-black leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl">
@@ -410,11 +411,30 @@ export default function Home() {
                     </p>
 
                     <p className="mt-1 text-xs text-[#56627c]">
-                      whatsapp .txt export
+                      whatsapp or copied instagram .txt export
                     </p>
                   </>
                 )}
               </label>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-[#344363] bg-[#0f172a]/50 p-4">
+                  <p className="text-sm font-bold text-yellow-400">whatsapp</p>
+
+                  <p className="mt-1 text-xs leading-5 text-[#7d8aa6]">
+                    export the chat without media and upload the .txt file
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-[#344363] bg-[#0f172a]/50 p-4">
+                  <p className="text-sm font-bold text-yellow-400">instagram</p>
+
+                  <p className="mt-1 text-xs leading-5 text-[#7d8aa6]">
+                    open your downloaded conversation, copy the chat into a .txt
+                    file, then upload it here
+                  </p>
+                </div>
+              </div>
 
               <motion.button
                 whileHover={{
@@ -519,6 +539,9 @@ export default function Home() {
 
                 <p className="mt-2 text-lg text-[#8190ad]">
                   messages analyzed for reasons nobody can adequately explain
+                </p>
+                <p className="mt-3 text-sm font-semibold text-yellow-400">
+                  detected: {data.platform}
                 </p>
               </motion.div>
             </Section>
