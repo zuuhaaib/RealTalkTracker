@@ -9,8 +9,6 @@ from analysis.behavior import get_behavior_statistics
 from analysis.awards import get_awards
 from analysis.activity import get_activity_statistics
 from analysis.text_stats import get_text_statistics
-from analysis.sentiment import analyze_sentiment
-from analysis.topics import analyze_topics
 from analysis.ai_analysis import analyze_conversation_with_ai
 
 
@@ -68,8 +66,8 @@ async def analyze_chat(file: UploadFile = File(...)):
     awards = get_awards(stats, behavior)
     activity = get_activity_statistics(messages)
     text_stats = get_text_statistics(messages)
-    sentiment = analyze_sentiment(messages)
-    topics = analyze_topics(messages)
+    sentiment = {}
+    topics = []
 
     ai_analysis = analyze_conversation_with_ai(
         messages,

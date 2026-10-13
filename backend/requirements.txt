@@ -2,8 +2,5 @@ fastapi
 uvicorn[standard]
 python-multipart
 pandas
-transformers
-sentence-transformers
-scikit-learn
 openai
 python-dotenv
