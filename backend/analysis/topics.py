@@ -4,7 +4,18 @@ from collections import Counter
 import re
 
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
+_topic_model = None
+
+
+def get_topic_model():
+    global _topic_model
+
+    if _topic_model is None:
+        _topic_model = SentenceTransformer(
+            "all-MiniLM-L6-v2"
+        )
+
+    return _topic_model
 
 
 MEDIA_MARKERS = [
@@ -73,7 +84,6 @@ def analyze_topics(messages, number_of_topics=6):
         if is_media_message(text):
             continue
 
-        # Ignore very tiny messages
         if len(text.split()) < 3:
             continue
 
@@ -89,6 +99,9 @@ def analyze_topics(messages, number_of_topics=6):
         msg["message"]
         for msg in usable_messages
     ]
+
+    # Load SentenceTransformer only when topic analysis is needed
+    model = get_topic_model()
 
     embeddings = model.encode(
         texts,
