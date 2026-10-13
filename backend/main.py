@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,9 +17,15 @@ from analysis.ai_analysis import analyze_conversation_with_ai
 app = FastAPI()
 
 
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        frontend_url,
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -26,14 +34,12 @@ app.add_middleware(
 
 @app.get("/")
 def root():
-    return {
-        "message": "Chat Analyzer API is running"
-    }
+    return {"message": "Chat Analyzer API is running"}
 
 
 @app.post("/analyze")
 async def analyze_chat(file: UploadFile = File(...)):
-    if not file.filename.endswith(".txt"):
+    if not file.filename or not file.filename.endswith(".txt"):
         raise HTTPException(
             status_code=400,
             detail="Please upload a .txt WhatsApp export."
@@ -64,24 +70,24 @@ async def analyze_chat(file: UploadFile = File(...)):
     text_stats = get_text_statistics(messages)
     sentiment = analyze_sentiment(messages)
     topics = analyze_topics(messages)
+
     ai_analysis = analyze_conversation_with_ai(
-    messages,
-    stats,
-    behavior,
-    text_stats,
-    sentiment,
-    topics
-)
+        messages,
+        stats,
+        behavior,
+        text_stats,
+        sentiment,
+        topics
+    )
 
     return {
-    "messageCount": len(messages),
-    "messages": messages[:10],
-    "statistics": stats,
-    "behavior": behavior,
-    "awards": awards,
-    "activity": activity,
-    "textStats": text_stats,
-    "sentiment": sentiment,
-    "topics": topics,
-    "aiAnalysis": ai_analysis
-}
+        "messageCount": len(messages),
+        "statistics": stats,
+        "behavior": behavior,
+        "awards": awards,
+        "activity": activity,
+        "textStats": text_stats,
+        "sentiment": sentiment,
+        "topics": topics,
+        "aiAnalysis": ai_analysis
+    }
