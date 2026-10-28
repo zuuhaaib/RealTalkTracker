@@ -187,10 +187,7 @@ def analyze_conversation_with_ai(
 
     if not message_sample:
         return {
-            "error": (
-                "This chat has no readable text messages for AI analysis. "
-                "Your chat statistics are still available."
-            )
+            "error": "This chat has no readable text messages for AI analysis."
         }
 
     # Limit the longest message sent to OpenAI without changing

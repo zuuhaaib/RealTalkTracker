@@ -3,6 +3,8 @@ from sklearn.cluster import KMeans
 from collections import Counter
 import re
 
+from analysis.message_content import split_message_content
+
 
 _topic_model = None
 
@@ -18,18 +20,6 @@ def get_topic_model():
     return _topic_model
 
 
-MEDIA_MARKERS = [
-    "image omitted",
-    "video omitted",
-    "gif omitted",
-    "sticker omitted",
-    "document omitted",
-    "voice call",
-    "video call",
-    "missed voice call",
-]
-
-
 STOP_WORDS = {
     "the", "a", "an", "and", "or", "but", "to", "of", "in",
     "on", "for", "at", "with", "is", "it", "this", "that",
@@ -38,15 +28,6 @@ STOP_WORDS = {
     "does", "did", "have", "has", "had", "can", "could", "would",
     "should", "will", "just"
 }
-
-
-def is_media_message(text):
-    lower = text.lower()
-
-    return any(
-        marker in lower
-        for marker in MEDIA_MARKERS
-    )
 
 
 def get_keywords(messages, count=5):
@@ -76,12 +57,10 @@ def analyze_topics(messages, number_of_topics=6):
     usable_messages = []
 
     for msg in messages:
-        text = msg["message"].strip()
+        # Captions remain usable text even when media is present.
+        text, _ = split_message_content(msg["message"])
 
         if not text:
-            continue
-
-        if is_media_message(text):
             continue
 
         if len(text.split()) < 3:
