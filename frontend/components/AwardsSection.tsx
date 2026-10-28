@@ -114,7 +114,7 @@ function Award({
 
       <p className="text-sm font-bold text-yellow-400">{title}</p>
 
-      <p className="mt-2 text-3xl font-black">{winner ?? "n/a"}</p>
+      <p className="mt-2 text-3xl font-black">{winner ?? "no winner"}</p>
 
       <p className="mt-4 text-sm text-[#8794ad]">{caption}</p>
     </motion.div>

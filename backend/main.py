@@ -1,7 +1,8 @@
 import logging
 import os
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from request_limits import analysis_limiter
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
@@ -115,28 +116,51 @@ def root():
 
 
 @app.post("/analyze")
-async def analyze_chat(file: UploadFile = File(...)):
-    if not file.filename or not file.filename.lower().endswith(".txt"):
-        raise HTTPException(
-            status_code=400,
-            detail="Please upload a .txt chat export.",
-        )
+async def analyze_chat(
+    request: Request,
+    file: UploadFile = File(...),
+):
+    logger.info(
+        "Proxy check: peer=%r forwarded_for=%r",
+        request.client.host if request.client else None,
+        request.headers.get("x-forwarded-for"),
+    )
+    client_ip = request.client.host if request.client else "unknown"
+
+    # Use the connection address, not an unverified forwarded header.
+    # Admission failures must not release someone else's active slot.
+    try:
+        analysis_limiter.acquire(client_ip)
+    except HTTPException:
+        await file.close()
+        raise
 
     try:
+        if not file.filename or not file.filename.lower().endswith(".txt"):
+            raise HTTPException(
+                status_code=400,
+                detail="Please upload a .txt chat export.",
+            )
+
         contents = await file.read(MAX_FILE_SIZE + 1)
+
+        if len(contents) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    "This file is too large. "
+                    "Please upload a file under 10 MiB."
+                ),
+            )
+
+        if not contents.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="This file is empty. Please upload a chat export.",
+            )
+
+        return await run_in_threadpool(process_chat, contents)
+
     finally:
+        analysis_limiter.release()
         await file.close()
-
-    if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail="This file is too large. Please upload a file under 10 MiB.",
-        )
-
-    if not contents.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="This file is empty. Please upload a chat export.",
-        )
-
-    return await run_in_threadpool(process_chat, contents)
