@@ -120,10 +120,11 @@ async def analyze_chat(
     request: Request,
     file: UploadFile = File(...),
 ):
-    logger.info(
-        "Proxy check: peer=%r forwarded_for=%r",
-        request.client.host if request.client else None,
-        request.headers.get("x-forwarded-for"),
+    print(
+        "PROXY_CHECK",
+        repr(request.client.host if request.client else None),
+        repr(request.headers.get("x-forwarded-for")),
+        flush=True,
     )
     client_ip = request.client.host if request.client else "unknown"
 
