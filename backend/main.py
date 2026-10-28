@@ -1,11 +1,11 @@
 import logging
 import os
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
-from request_limits import analysis_limiter
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
+from request_limits import analysis_limiter
 from parsers.whatsapp import parse_whatsapp_chat
 from parsers.instagram import parse_instagram_chat
 from analysis.statistics import get_basic_statistics
@@ -21,6 +21,7 @@ logger = logging.getLogger("uvicorn.error")
 app = FastAPI()
 
 MAX_FILE_SIZE = 10 * 1024 * 1024
+SHARED_ANALYSIS_BUCKET = "shared-analysis-limit"
 
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
@@ -65,6 +66,10 @@ def process_chat(contents: bytes):
             status_code=400,
             detail="No WhatsApp or Instagram messages could be detected.",
         )
+
+    # Only recognized chats consume the shared rate allowance.
+    # The concurrency slot was reserved before reading and parsing.
+    analysis_limiter.consume_attempt(SHARED_ANALYSIS_BUCKET)
 
     stats = get_basic_statistics(messages)
     behavior = get_behavior_statistics(messages)
@@ -116,19 +121,8 @@ def root():
 
 
 @app.post("/analyze")
-async def analyze_chat(
-    request: Request,
-    file: UploadFile = File(...),
-):
-    client_ip = "shared-analysis-limit"
-
-    # Use the connection address, not an unverified forwarded header.
-    # Admission failures must not release someone else's active slot.
-    try:
-        analysis_limiter.acquire(client_ip)
-    except HTTPException:
-        await file.close()
-        raise
+async def analyze_chat(file: UploadFile = File(...)):
+    slot_acquired = False
 
     try:
         if not file.filename or not file.filename.lower().endswith(".txt"):
@@ -136,6 +130,11 @@ async def analyze_chat(
                 status_code=400,
                 detail="Please upload a .txt chat export.",
             )
+
+        # Bound concurrent file reads, parsing, and AI processing.
+        # This does not consume the five-per-minute allowance.
+        analysis_limiter.acquire_slot()
+        slot_acquired = True
 
         contents = await file.read(MAX_FILE_SIZE + 1)
 
@@ -148,7 +147,7 @@ async def analyze_chat(
                 ),
             )
 
-        if not contents.strip():
+        if not contents:
             raise HTTPException(
                 status_code=400,
                 detail="This file is empty. Please upload a chat export.",
@@ -157,5 +156,8 @@ async def analyze_chat(
         return await run_in_threadpool(process_chat, contents)
 
     finally:
-        analysis_limiter.release()
-        await file.close()
+        try:
+            if slot_acquired:
+                analysis_limiter.release()
+        finally:
+            await file.close()
