@@ -122,11 +122,12 @@ async def analyze_chat(
 ):
     print(
         "PROXY_CHECK",
-        repr(request.client.host if request.client else None),
-        repr(request.headers.get("x-forwarded-for")),
+        "peer=", repr(request.client.host if request.client else None),
+        "forwarded=", repr(request.headers.get("x-forwarded-for")),
+        "cf_client=", repr(request.headers.get("cf-connecting-ip")),
         flush=True,
     )
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = "shared-analysis-limit"
 
     # Use the connection address, not an unverified forwarded header.
     # Admission failures must not release someone else's active slot.
