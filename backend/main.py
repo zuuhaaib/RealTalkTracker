@@ -2,6 +2,7 @@ import os
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
 
 from parsers.whatsapp import parse_whatsapp_chat
 from parsers.instagram import parse_instagram_chat
@@ -14,7 +15,7 @@ from analysis.ai_analysis import analyze_conversation_with_ai
 
 
 app = FastAPI()
-
+MAX_FILE_SIZE = 10 * 1024 * 1024
 
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
@@ -38,20 +39,32 @@ def root():
 
 @app.post("/analyze")
 async def analyze_chat(file: UploadFile = File(...)):
-    if not file.filename or not file.filename.endswith(".txt"):
+    if not file.filename or not file.filename.lower().endswith(".txt"):
         raise HTTPException(
             status_code=400,
-            detail="Please upload a .txt chat export."
+            detail="Please upload a .txt chat export.",
         )
 
-    contents = await file.read()
+    contents = await file.read(MAX_FILE_SIZE + 1)
+
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="This file is too large. Please upload a file under 10 MiB.",
+        )
+
+    if not contents.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="This file is empty. Please upload a chat export.",
+        )
 
     try:
-        text = contents.decode("utf-8")
+        text = contents.decode("utf-8-sig")
     except UnicodeDecodeError:
         raise HTTPException(
             status_code=400,
-            detail="Unable to read this text file."
+            detail="Unable to read this text file.",
         )
 
     messages = parse_whatsapp_chat(text)
@@ -64,7 +77,7 @@ async def analyze_chat(file: UploadFile = File(...)):
     if not messages:
         raise HTTPException(
             status_code=400,
-            detail="No WhatsApp or Instagram messages could be detected."
+            detail="No WhatsApp or Instagram messages could be detected.",
         )
 
     stats = get_basic_statistics(messages)
@@ -76,14 +89,20 @@ async def analyze_chat(file: UploadFile = File(...)):
     sentiment = {}
     topics = []
 
-    ai_analysis = analyze_conversation_with_ai(
-        messages,
-        stats,
-        behavior,
-        text_stats,
-        sentiment,
-        topics
-    )
+    try:
+        ai_analysis = await run_in_threadpool(
+            analyze_conversation_with_ai,
+            messages,
+            stats,
+            behavior,
+            text_stats,
+            sentiment,
+            topics,
+        )
+    except Exception:
+        ai_analysis = {
+            "error": "AI analysis is temporarily unavailable."
+        }
 
     return {
         "platform": platform,
@@ -95,5 +114,5 @@ async def analyze_chat(file: UploadFile = File(...)):
         "textStats": text_stats,
         "sentiment": sentiment,
         "topics": topics,
-        "aiAnalysis": ai_analysis
+        "aiAnalysis": ai_analysis,
     }

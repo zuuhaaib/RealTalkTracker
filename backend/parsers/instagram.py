@@ -8,27 +8,19 @@ TIMESTAMP_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-
 IGNORED_ACTIVITY_PATTERNS = [
     re.compile(r"^Liked a message$", re.IGNORECASE),
     re.compile(r"^Reacted .+ to your message$", re.IGNORECASE),
 ]
 
 
-REACTION_LINE_PATTERN = re.compile(
-    r"^[^\w\s]+.+$"
-)
-
-
 def is_timestamp(line):
-    return bool(TIMESTAMP_PATTERN.match(line.strip()))
+    return bool(TIMESTAMP_PATTERN.fullmatch(line.strip()))
 
 
 def is_ignored_activity(text):
-    text = text.strip()
-
     return any(
-        pattern.match(text)
+        pattern.fullmatch(text.strip())
         for pattern in IGNORED_ACTIVITY_PATTERNS
     )
 
@@ -36,56 +28,127 @@ def is_ignored_activity(text):
 def parse_timestamp(value):
     return datetime.strptime(
         value.strip(),
-        "%b %d, %Y %I:%M %p"
+        "%b %d, %Y %I:%M %p",
     )
 
 
-def parse_instagram_chat(text):
-    lines = [
-        line.strip()
-        for line in text.splitlines()
-    ]
+def is_emoji_sequence(text):
+    """Recognize common emoji characters and their modifiers."""
+    if not text:
+        return False
 
-    messages = []
+    has_emoji = False
+
+    for char in text:
+        code = ord(char)
+
+        if (
+            0x1F000 <= code <= 0x1FAFF
+            or 0x2600 <= code <= 0x27BF
+        ):
+            has_emoji = True
+        elif code in (0x200D, 0xFE0E, 0xFE0F):
+            # Emoji joiner and presentation selectors.
+            continue
+        else:
+            return False
+
+    return has_emoji
+
+
+def is_reaction_annotation(line, participant_names):
+    """
+    Recognize a trailing annotation such as '❤anuva'.
+
+    An emoji-only message or punctuation-led message does not match.
+    """
+    for name in participant_names:
+        if not line.endswith(name):
+            continue
+
+        prefix = line[:-len(name)].strip()
+
+        if is_emoji_sequence(prefix):
+            return True
+
+    return False
+
+
+def parse_instagram_chat(text):
+    text = (
+        text.lstrip("\ufeff")
+        .replace("\u202f", " ")
+        .replace("\xa0", " ")
+    )
+
+    # First collect entries. In this copied format, the timestamp
+    # follows the sender and message.
+    entries = []
     block = []
 
-    for line in lines:
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+
         if not line:
             continue
 
         if is_timestamp(line):
-            if block:
+            try:
                 timestamp = parse_timestamp(line)
-                sender = block[0].strip()
+            except ValueError:
+                block = []
+                continue
 
-                content_lines = block[1:]
-
-                if sender and content_lines:
-                    cleaned_lines = []
-
-                    for content_line in content_lines:
-                        if REACTION_LINE_PATTERN.match(content_line):
-                            continue
-
-                        cleaned_lines.append(content_line)
-
-                    message = "\n".join(cleaned_lines).strip()
-
-                    if (
-                        message
-                        and not is_ignored_activity(message)
-                    ):
-                        messages.append({
-                            "sender": sender,
-                            "timestamp": timestamp.isoformat(),
-                            "message": message,
-                        })
+            if block:
+                entries.append({
+                    "sender": block[0],
+                    "timestamp": timestamp,
+                    "content_lines": block[1:],
+                })
 
             block = []
-
         else:
             block.append(line)
 
-    messages.reverse()
+    # Learn names from sender lines, rather than hardcoding them.
+    participant_names = {
+        entry["sender"]
+        for entry in entries
+        if entry["sender"]
+    }
+
+    messages = []
+
+    for entry in entries:
+        content_lines = entry["content_lines"][:]
+
+        # Reaction annotations follow the message text.
+        # Only remove matching lines at the end of the entry.
+        while content_lines and is_reaction_annotation(
+            content_lines[-1],
+            participant_names,
+        ):
+            content_lines.pop()
+
+        message = "\n".join(content_lines).strip()
+
+        if not message or is_ignored_activity(message):
+            continue
+
+        messages.append({
+            "sender": entry["sender"],
+            "timestamp": entry["timestamp"].isoformat(),
+            "message": message,
+        })
+
+    # Your copied export is newest-first. Reverse before sorting
+    # so messages sharing a timestamp also follow export chronology.
+    if (
+        len(entries) > 1
+        and entries[0]["timestamp"] > entries[-1]["timestamp"]
+    ):
+        messages.reverse()
+
+    messages.sort(key=lambda message: message["timestamp"])
 
     return messages
