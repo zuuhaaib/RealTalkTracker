@@ -48,7 +48,6 @@ def is_emoji_sequence(text):
         ):
             has_emoji = True
         elif code in (0x200D, 0xFE0E, 0xFE0F):
-            # Emoji joiner and presentation selectors.
             continue
         else:
             return False
@@ -60,7 +59,7 @@ def is_reaction_annotation(line, participant_names):
     """
     Recognize a trailing annotation such as '❤anuva'.
 
-    An emoji-only message or punctuation-led message does not match.
+    Emoji-only messages and punctuation-led messages do not match.
     """
     for name in participant_names:
         if not line.endswith(name):
@@ -81,11 +80,11 @@ def parse_instagram_chat(text):
         .replace("\xa0", " ")
     )
 
-    # First collect entries. In this copied format, the timestamp
-    # follows the sender and message.
     entries = []
     block = []
 
+    # This format places the timestamp after the sender and content.
+    # The input must begin with a sender, not a page title or navigation.
     for raw_line in text.splitlines():
         line = raw_line.strip()
 
@@ -110,7 +109,8 @@ def parse_instagram_chat(text):
         else:
             block.append(line)
 
-    # Learn names from sender lines, rather than hardcoding them.
+    # Preserve sender labels as supplied. Don't infer that a name is
+    # a header merely because that participant appears only once.
     participant_names = {
         entry["sender"]
         for entry in entries
@@ -122,8 +122,7 @@ def parse_instagram_chat(text):
     for entry in entries:
         content_lines = entry["content_lines"][:]
 
-        # Reaction annotations follow the message text.
-        # Only remove matching lines at the end of the entry.
+        # Only remove recognized reaction annotations at the end.
         while content_lines and is_reaction_annotation(
             content_lines[-1],
             participant_names,
@@ -141,8 +140,8 @@ def parse_instagram_chat(text):
             "message": message,
         })
 
-    # Your copied export is newest-first. Reverse before sorting
-    # so messages sharing a timestamp also follow export chronology.
+    # For newest-first exports, reverse before the stable sort so
+    # messages with equal timestamps follow the same ordering choice.
     if (
         len(entries) > 1
         and entries[0]["timestamp"] > entries[-1]["timestamp"]

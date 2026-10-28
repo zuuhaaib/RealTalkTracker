@@ -2,14 +2,17 @@ import re
 from datetime import datetime
 
 
+# Headers are either bracketed (iOS) or followed by " - " (Android).
+# Requiring one of these stops a continuation line that merely starts
+# with a date, such as "12/05/2024 10:00 standup", from being read as
+# a new message.
 MESSAGE_PATTERN = re.compile(
-    r"^\[?"
+    r"^(?P<bracket>\[)?"
     r"(?P<date>\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4})"
     r",?\s+"
     r"(?P<time>\d{1,2}:\d{2}(?::\d{2})?)"
     r"\s*(?P<ampm>[AP]M)?"
-    r"\]?"
-    r"\s*(?:-\s*)?"
+    r"(?(bracket)\]\s*(?:-\s*)?|\s*-\s*)"
     r"(?P<content>.*)$",
     re.IGNORECASE,
 )
@@ -25,10 +28,13 @@ ENCRYPTION_NOTICE = (
 
 # Check the complete entry before splitting at a colon.
 # This prevents a notice such as:
-# Alex created group "Trip: 2025"
-# from creating a participant named 'Alex created group "Trip'.
-GROUP_CREATION_PATTERN = re.compile(
-    r'^[^:\n]+ created (?:the )?group\s+["“].*["”]$',
+# Alex changed the subject to "Trip: 2025"
+# from creating a participant named 'Alex changed the subject to "Trip'.
+QUOTED_NAME_NOTICE_PATTERN = re.compile(
+    r"^[^:\n]+ (?:"
+    r"created (?:the )?group"
+    r'|changed (?:the )?(?:subject|group name)(?: from ["“].*["”])? to'
+    r')\s+["“].*["”]$',
     re.IGNORECASE,
 )
 
@@ -199,7 +205,7 @@ def parse_whatsapp_chat(text: str, date_order: str | None = None):
 
             content = match.group("content")
 
-            if GROUP_CREATION_PATTERN.fullmatch(content):
+            if QUOTED_NAME_NOTICE_PATTERN.fullmatch(content):
                 continue
 
             sender_match = SENDER_PATTERN.match(content)

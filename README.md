@@ -154,7 +154,7 @@ The public API URL is configuration, not a secret. CORS is not authentication.
 
 The frontend rejects empty files and files larger than 10 MiB. The backend also enforces an application-level read limit.
 
-Media files themselves are not analyzed. Supported textual media placeholders remain included as messages.
+Media files themselves are not analyzed. Media-only messages still count as messages, but recognized placeholders such as `image omitted` or `<attached: …>` don't add words, characters, or emojis.
 
 ### WhatsApp format
 
@@ -171,7 +171,11 @@ For non-year-first dates, it examines the file to choose one consistent day/mont
 
 Conflicting date conventions reject the WhatsApp parse and currently produce a generic unsupported-export error through the API.
 
-Recognized English encryption notices, call records, empty entries, and supported group-creation notices are excluded. Media placeholders remain included.
+A message header must be bracketed (`[date, time] Name:`) or followed by a dash (`date, time - Name:`). Lines inside a multiline message that merely start with a date stay part of that message.
+
+Recognized English encryption notices, call records, empty entries, and group-creation and subject-change notices are excluded.
+
+Within messages, recognized media placeholders (`image omitted`, `<Media omitted>`, `<attached: …>`, `… (file attached)`, `Contact card omitted`, and similar) are treated as media rather than words. Captions sent with media still count as text. Deleted-message notices count as messages with no text, and the `<This message was edited>` marker is ignored.
 
 Not every system-notice format or locale is supported.
 
@@ -193,6 +197,8 @@ The parser expects a sender line, message content, and an English timestamp.
 It removes recognized “Liked a message” and “Reacted … to your message” activity entries, plus trailing reaction annotations such as `❤Alex`. Emoji-only messages and punctuation-led messages remain included.
 
 A genuine message identical to a reaction annotation cannot be distinguished reliably in copied text. Entries without readable message content are excluded.
+
+Header lines copied above the first message, such as the chat title, are skipped when the real sender appears elsewhere in the chat.
 
 Native Instagram JSON and HTML exports are not directly supported.
 
@@ -216,7 +222,9 @@ These metrics describe messaging patterns. They do not measure affection, effort
 
 ### Known counting limitations
 
-Media detection and basic word counting are still being refined. Some placeholders can contribute artificial words, and some sentences mentioning calls can be misclassified as media in text statistics.
+Media and system-notice detection only covers recognized English formats. Placeholders or notices in other languages can still contribute artificial words or participants.
+
+Emojis with skin tones, joined emoji sequences (like family emojis), and flags each count as one emoji.
 
 ## the AI has opinions, not a psychology degree
 
@@ -322,7 +330,7 @@ cd backend
 python -m unittest discover -s tests -v
 ```
 
-The current tests cover quota handling and upload/rate-limit behavior. External AI and quota-store requests are mocked.
+The current tests cover chat parsing, media and emoji counting, quota handling, and upload/rate-limit behavior. External AI and quota-store requests are mocked.
 
 They do not spend OpenAI credits or change the live daily allowance.
 

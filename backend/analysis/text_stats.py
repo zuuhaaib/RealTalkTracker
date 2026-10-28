@@ -30,18 +30,79 @@ def extract_words(text: str):
     ]
 
 
+ZERO_WIDTH_JOINER = 0x200D
+VARIATION_SELECTORS = {0xFE0E, 0xFE0F}
+
+
+def is_skin_tone(code: int):
+    return 0x1F3FB <= code <= 0x1F3FF
+
+
+def is_regional_indicator(code: int):
+    return 0x1F1E6 <= code <= 0x1F1FF
+
+
+def is_emoji_base(code: int):
+    # Skin tones and flag letters only count as part of a sequence.
+    if is_skin_tone(code) or is_regional_indicator(code):
+        return False
+
+    return (
+        0x1F000 <= code <= 0x1FAFF
+        or 0x2600 <= code <= 0x27BF
+    )
+
+
 def extract_emojis(text: str):
+    """Group skin tones, ZWJ sequences, and flags into single emojis."""
     emojis = []
+    index = 0
 
-    for char in text:
-        code = ord(char)
+    while index < len(text):
+        code = ord(text[index])
 
-        if (
-            0x1F300 <= code <= 0x1FAFF
-            or 0x2600 <= code <= 0x26FF
-            or 0x2700 <= code <= 0x27BF
-        ):
-            emojis.append(char)
+        # A flag is a pair of regional indicator letters.
+        if is_regional_indicator(code):
+            if (
+                index + 1 < len(text)
+                and is_regional_indicator(ord(text[index + 1]))
+            ):
+                emojis.append(text[index:index + 2])
+                index += 2
+            else:
+                index += 1
+
+            continue
+
+        if not is_emoji_base(code):
+            index += 1
+            continue
+
+        end = index + 1
+
+        while end < len(text):
+            next_code = ord(text[end])
+
+            if is_skin_tone(next_code) or next_code in VARIATION_SELECTORS:
+                end += 1
+            elif (
+                next_code == ZERO_WIDTH_JOINER
+                and end + 1 < len(text)
+                and is_emoji_base(ord(text[end + 1]))
+            ):
+                end += 2
+            else:
+                break
+
+        emoji = text[index:end]
+
+        # Count ❤ and ❤️ together. ZWJ sequences keep their selectors
+        # because some only render correctly with them.
+        if chr(ZERO_WIDTH_JOINER) not in emoji:
+            emoji = emoji.replace("︎", "").replace("️", "")
+
+        emojis.append(emoji)
+        index = end
 
     return emojis
 
