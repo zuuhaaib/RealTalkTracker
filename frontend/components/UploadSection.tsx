@@ -66,25 +66,41 @@ export default function UploadSection({
 
               selectFile(event.dataTransfer.files?.[0] ?? null);
             }}
-            className={`flex min-h-72 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-8 text-center transition ${
+            className={`flex min-h-72 flex-col items-center justify-center rounded-lg border-2 border-dashed px-8 text-center transition has-[input:focus-visible]:outline-4 has-[input:focus-visible]:outline-offset-4 has-[input:focus-visible]:outline-yellow-400 ${
+              loading ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+            } ${
               dragging
                 ? "border-yellow-400 bg-yellow-400/10"
                 : "border-[#435273] bg-[#0f172a]/60 hover:border-yellow-400"
             }`}
           >
+            {/* Visually hidden, not display:none, so the native input stays
+                in the tab order and Enter/Space open the file picker. */}
             <input
               id="chat-file"
               type="file"
               accept=".txt"
-              className="hidden"
-              onChange={(event) => selectFile(event.target.files?.[0] ?? null)}
+              disabled={loading}
+              className="sr-only"
+              onChange={(event) => {
+                selectFile(event.target.files?.[0] ?? null);
+
+                // Allow choosing the same file again after an error.
+                event.target.value = "";
+              }}
             />
 
-            <UploadCloud size={38} className="mb-5 text-yellow-400" />
+            <UploadCloud
+              size={38}
+              className="mb-5 text-yellow-400"
+              aria-hidden="true"
+            />
 
             {file ? (
               <>
-                <p className="text-lg font-bold">{file.name}</p>
+                <p className="max-w-full text-lg font-bold wrap-anywhere">
+                  {file.name}
+                </p>
 
                 <p className="mt-2 text-sm text-[#7d8aa6]">
                   this should be interesting
@@ -95,7 +111,8 @@ export default function UploadSection({
                 <p className="text-lg font-bold">drop your chat here</p>
 
                 <p className="mt-2 text-sm text-[#7d8aa6]">
-                  or click this suspiciously large box
+                  or click this suspiciously large box (or tab here and press
+                  enter)
                 </p>
 
                 <p className="mt-1 text-xs text-[#56627c]">

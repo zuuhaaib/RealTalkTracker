@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import date, datetime, time
 
 
 # Headers are either bracketed (iOS) or followed by " - " (Android).
@@ -53,6 +53,65 @@ CALL_RECORD_PATTERN = re.compile(
 )
 
 
+DATE_SEPARATOR_PATTERN = re.compile(r"[-/.]")
+
+
+def parse_date(date_str: str, date_order: str):
+    """
+    Parse a date with the same rules strptime applied before.
+
+    Year-first dates are YYYY/MM/DD. Otherwise the year has four digits,
+    or two digits using strptime's %y pivot (69-99 -> 1900s).
+    This avoids strptime, which was the main cost on large exports.
+    """
+    parts = DATE_SEPARATOR_PATTERN.split(date_str)
+
+    if len(parts) != 3:
+        return None
+
+    if len(parts[0]) == 4:
+        year, month, day = parts
+    elif date_order == "MDY":
+        month, day, year = parts
+    else:
+        day, month, year = parts
+
+    if len(month) > 2 or len(day) > 2:
+        return None
+
+    if len(year) == 4:
+        year_value = int(year)
+    elif len(year) == 2:
+        short_year = int(year)
+        year_value = short_year + (1900 if short_year >= 69 else 2000)
+    else:
+        return None
+
+    try:
+        return date(year_value, int(month), int(day))
+    except ValueError:
+        return None
+
+
+def parse_time(time_str: str, ampm: str | None):
+    parts = [int(part) for part in time_str.split(":")]
+    hour, minute = parts[0], parts[1]
+    second = parts[2] if len(parts) == 3 else 0
+
+    if ampm:
+        if not 1 <= hour <= 12:
+            return None
+
+        hour = hour % 12 + (12 if ampm.upper() == "PM" else 0)
+    elif hour > 23:
+        return None
+
+    if minute > 59 or second > 59:
+        return None
+
+    return time(hour, minute, second)
+
+
 def parse_timestamp(
     date_str: str,
     time_str: str,
@@ -60,34 +119,17 @@ def parse_timestamp(
     date_order: str = "DMY",
 ):
     """Parse a timestamp without switching date conventions per message."""
-    normalized_date = date_str.replace(".", "/").replace("-", "/")
-    parts = normalized_date.split("/")
+    parsed_date = parse_date(date_str, date_order)
 
-    if len(parts[0]) == 4:
-        date_formats = ["%Y/%m/%d"]
-    elif date_order == "MDY":
-        date_formats = ["%m/%d/%Y", "%m/%d/%y"]
-    else:
-        date_formats = ["%d/%m/%Y", "%d/%m/%y"]
+    if parsed_date is None:
+        return None
 
-    if ampm:
-        time_formats = ["%I:%M:%S %p", "%I:%M %p"]
-        time_value = f"{time_str} {ampm.upper()}"
-    else:
-        time_formats = ["%H:%M:%S", "%H:%M"]
-        time_value = time_str
+    parsed_time = parse_time(time_str, ampm)
 
-    for date_format in date_formats:
-        for time_format in time_formats:
-            try:
-                return datetime.strptime(
-                    f"{normalized_date} {time_value}",
-                    f"{date_format} {time_format}",
-                )
-            except ValueError:
-                continue
+    if parsed_time is None:
+        return None
 
-    return None
+    return datetime.combine(parsed_date, parsed_time)
 
 
 def detect_date_order(lines):

@@ -22,7 +22,13 @@ const awardRotations = [
   "-rotate-1",
 ];
 
-export default function AwardsSection({ awards }: { awards: Awards }) {
+export default function AwardsSection({
+  awards,
+  isGroup,
+}: {
+  awards: Awards;
+  isGroup: boolean;
+}) {
   return (
     <>
       {/* AWARDS */}
@@ -40,14 +46,20 @@ export default function AwardsSection({ awards }: { awards: Awards }) {
             title="biggest yapper"
             winner={awards.biggestYapper}
             caption="bro had things to say"
+            emptyCaption="nobody sent a message, somehow"
           />
 
           <Award
             rotation={awardRotations[1]}
             icon={<Zap />}
-            title="fastest responder"
+            title={isGroup ? "quickest to jump in" : "fastest responder"}
             winner={awards.fastestResponder}
-            caption="phone apparently surgically attached"
+            caption={
+              isGroup
+                ? "shortest median gap before speaking. who they were answering is anyone’s guess"
+                : "phone apparently surgically attached"
+            }
+            emptyCaption="no sender changes within six hours, so there was nothing to time"
           />
 
           <Award
@@ -56,6 +68,7 @@ export default function AwardsSection({ awards }: { awards: Awards }) {
             title="conversation starter"
             winner={awards.conversationStarter}
             caption="keeping the friendship alive one text at a time"
+            emptyCaption="no conversations to start"
           />
 
           <Award
@@ -63,7 +76,8 @@ export default function AwardsSection({ awards }: { awards: Awards }) {
             icon={<MessagesSquare />}
             title="double text champion"
             winner={awards.doubleTexter}
-            caption="one message simply wasn't enough"
+            caption="most extra messages in a row. one message simply wasn't enough"
+            emptyCaption="nobody sent two messages in a row"
           />
 
           <Award
@@ -72,6 +86,7 @@ export default function AwardsSection({ awards }: { awards: Awards }) {
             title="most words"
             winner={awards.mostWords}
             caption="published author apparently"
+            emptyCaption="no readable words to count"
           />
 
           <Award
@@ -80,8 +95,13 @@ export default function AwardsSection({ awards }: { awards: Awards }) {
             title="certified essay sender"
             winner={awards.longestMessages}
             caption="paragraph enjoyer"
+            emptyCaption="no readable words to count"
           />
         </div>
+
+        <p className="mt-10 text-xs text-[#66738d]">
+          awards use the same definitions as the stats above. ties are shared.
+        </p>
       </Section>
     </>
   );
@@ -93,12 +113,15 @@ function Award({
   title,
   winner,
   caption,
+  emptyCaption,
 }: {
   rotation: string;
   icon: ReactNode;
   title: string;
   winner: string | null;
   caption: string;
+  // Shown instead of the joke when nobody qualified.
+  emptyCaption: string;
 }) {
   return (
     <motion.div
@@ -106,7 +129,7 @@ function Award({
         scale: 1.04,
         rotate: 0,
       }}
-      className={`${rotation} border-2 border-yellow-400 bg-[#14203a] p-6 shadow-xl`}
+      className={`${rotation} min-w-0 border-2 border-yellow-400 bg-[#14203a] p-6 shadow-xl`}
     >
       <div className="mb-7 flex h-11 w-11 items-center justify-center rounded-full bg-yellow-400 text-[#0b132b]">
         {icon}
@@ -114,9 +137,13 @@ function Award({
 
       <p className="text-sm font-bold text-yellow-400">{title}</p>
 
-      <p className="mt-2 text-3xl font-black">{winner ?? "no winner"}</p>
+      <p className="mt-2 text-2xl font-black wrap-anywhere sm:text-3xl">
+        {winner ?? "no winner"}
+      </p>
 
-      <p className="mt-4 text-sm text-[#8794ad]">{caption}</p>
+      <p className="mt-4 text-sm text-[#8794ad]">
+        {winner === null ? emptyCaption : caption}
+      </p>
     </motion.div>
   );
 }

@@ -150,8 +150,9 @@ class MediaStatisticsTests(unittest.TestCase):
             message("we should have a video call"),
         ])
 
+        self.assertEqual(len(sample), 1)
         self.assertEqual(
-            sample,
+            sample[0]["messages"],
             [
                 {
                     "sender": "Alex",

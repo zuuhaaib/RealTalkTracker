@@ -128,8 +128,10 @@ export default function ExportGuide() {
                   line breaks.
                 </li>
                 <li>
-                  Check that the copied text follows the layout below.
-                  Don&apos;t include page navigation or unrelated headings.
+                  Check that the copied text follows the layout below. The very
+                  first line must be a sender&apos;s name. Delete any page
+                  title, navigation, or headings above it, or they&apos;ll show
+                  up as a mystery extra participant.
                 </li>
                 <li>
                   Save it as a UTF-8{" "}
@@ -167,6 +169,13 @@ Dec 15, 2025 3:06 pm`}
             Files must be under 10 MiB. Only upload conversations you have
             permission to share. AI analysis sends participant names,
             statistics, and selected message excerpts to OpenAI.
+          </p>
+
+          <p className="mt-2">
+            The parser understands English-language exports. System messages
+            and media placeholders in other languages may sneak into the word
+            counts. Group chats work, but nobody can tell from an export who
+            was replying to whom, so reply stats become “gap before jumping in”.
           </p>
 
           <a

@@ -1,3 +1,13 @@
+"""
+Experimental and currently unused.
+
+main.py passes empty sentiment/topic placeholders instead of calling
+this module. Its dependencies (transformers, sentence-transformers,
+scikit-learn) are intentionally not in requirements.txt, so importing
+it in the deployed backend will fail. Kept for possible future work;
+see README "experimental modules".
+"""
+
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from collections import Counter

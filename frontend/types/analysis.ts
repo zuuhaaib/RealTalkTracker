@@ -65,6 +65,13 @@ export type AIAnalysis = {
   recurringTopics: string[];
   insideJokesOrPatterns: string[];
   interestingObservations: string[];
+
+  // How much of the chat the AI actually saw.
+  sample?: {
+    excerpts: number;
+    sampledMessages: number;
+    readableMessages: number;
+  };
 };
 
 export type AnalyzeResponse = {

@@ -1,7 +1,6 @@
 fastapi
 uvicorn[standard]
 python-multipart
-pandas
 openai
 python-dotenv
 tzdata

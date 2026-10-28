@@ -12,15 +12,16 @@ class AnalysisLimiter:
         requests_per_window=5,
         window_seconds=60,
         max_concurrent=2,
-        max_tracked_ips=10_000,
+        max_tracked_buckets=10_000,
     ):
         self.requests_per_window = requests_per_window
         self.window_seconds = window_seconds
         self.max_concurrent = max_concurrent
 
-        # Retained for compatibility. Keys can represent shared buckets,
-        # not just individual IP addresses.
-        self.max_tracked_ips = max_tracked_ips
+        # Buckets are rate-limit keys. The app currently uses a single
+        # shared bucket, because client IPs aren't trustworthy behind
+        # the current proxy chain (see README "shared limits").
+        self.max_tracked_buckets = max_tracked_buckets
 
         self._attempts = {}
         self._active = 0
@@ -59,7 +60,7 @@ class AnalysisLimiter:
             attempts = self._attempts.get(bucket)
 
             if attempts is None:
-                if len(self._attempts) >= self.max_tracked_ips:
+                if len(self._attempts) >= self.max_tracked_buckets:
                     raise HTTPException(
                         status_code=503,
                         detail="the server is busy. try again shortly",

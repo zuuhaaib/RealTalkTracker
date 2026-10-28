@@ -23,7 +23,11 @@ app = FastAPI()
 MAX_FILE_SIZE = 10 * 1024 * 1024
 SHARED_ANALYSIS_BUCKET = "shared-analysis-limit"
 
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+# Browsers send the origin without a trailing slash, and CORS
+# compares origins exactly.
+frontend_url = (
+    os.getenv("FRONTEND_URL", "http://localhost:3000").strip().rstrip("/")
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,7 +36,8 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         frontend_url,
     ],
-    allow_credentials=True,
+    # The upload uses no cookies or auth headers.
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

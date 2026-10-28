@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, MessageCircleMore } from "lucide-react";
@@ -27,6 +27,14 @@ export default function AnalyzePage() {
   const [data, setData] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (window.location.hash !== "#export-guide") return;
+
+    document
+      .getElementById("export-guide")
+      ?.scrollIntoView({ behavior: "instant", block: "start" });
+  }, []);
 
   async function handleAnalyze() {
     if (loading) return;
@@ -268,7 +276,7 @@ export default function AnalyzePage() {
               >
                 <YellowLabel>the damage</YellowLabel>
 
-                <h2 className="mt-5 text-4xl font-bold text-white sm:text-6xl">
+                <h2 className="mt-5 text-4xl font-bold text-white wrap-anywhere sm:text-6xl">
                   {participantNames}
                 </h2>
 
@@ -291,7 +299,10 @@ export default function AnalyzePage() {
               behaviorByName={data.behavior}
             />
 
-            <AwardsSection awards={data.awards} />
+            <AwardsSection
+              awards={data.awards}
+              isGroup={participants.length > 2}
+            />
 
             <ActivitySection activity={data.activity} />
 

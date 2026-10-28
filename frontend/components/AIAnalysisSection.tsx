@@ -47,7 +47,7 @@ export default function AIAnalysisSection({
                 viewport={{
                   once: true,
                 }}
-                className="mt-3 text-7xl font-black uppercase text-yellow-400 sm:text-8xl lg:text-9xl"
+                className="mt-3 text-5xl font-black uppercase text-yellow-400 wrap-anywhere sm:text-7xl md:text-8xl lg:text-9xl"
               >
                 {analysis.funniest.person}
               </motion.h2>
@@ -56,7 +56,7 @@ export default function AIAnalysisSection({
                 {analysis.funniest.confidence}%
               </p>
 
-              <p className="mx-auto mt-10 max-w-3xl text-xl leading-9 text-[#d1d8e5]">
+              <p className="mx-auto mt-10 max-w-3xl text-xl leading-9 text-[#d1d8e5] wrap-anywhere">
                 &ldquo;
                 {analysis.funniest.reason}
                 &rdquo;
@@ -65,6 +65,15 @@ export default function AIAnalysisSection({
               <p className="mt-7 text-xs italic text-[#66738d]">
                 *science may be doing some heavy lifting here
               </p>
+
+              {analysis.sample && (
+                <p className="mx-auto mt-3 max-w-2xl text-xs text-[#66738d]">
+                  {analysis.sample.sampledMessages ===
+                  analysis.sample.readableMessages
+                    ? `based on all ${analysis.sample.readableMessages.toLocaleString()} text messages plus the stats.`
+                    : `based on ${analysis.sample.sampledMessages.toLocaleString()} of ${analysis.sample.readableMessages.toLocaleString()} text messages, in ${analysis.sample.excerpts} excerpts from across the chat, plus the stats. it didn’t read everything.`}
+                </p>
+              )}
             </div>
 
             <div className="mx-auto mt-20 max-w-4xl border-l-4 border-yellow-400 pl-7">
@@ -72,7 +81,7 @@ export default function AIAnalysisSection({
                 okay but what&apos;s the actual dynamic
               </p>
 
-              <p className="text-xl leading-9 text-[#c5cddd]">
+              <p className="text-xl leading-9 text-[#c5cddd] wrap-anywhere">
                 {analysis.conversationDynamic}
               </p>
             </div>
@@ -83,7 +92,11 @@ export default function AIAnalysisSection({
             <SectionTitle
               eyebrow="for the character study"
               title="texting personalities"
-              text="somehow a language model has opinions about both of you now."
+              text={
+                Object.keys(analysis.participants).length > 2
+                  ? "somehow a language model has opinions about all of you now."
+                  : "somehow a language model has opinions about both of you now."
+              }
             />
 
             <div className="grid gap-10 md:grid-cols-2">
@@ -102,12 +115,13 @@ export default function AIAnalysisSection({
                     viewport={{
                       once: true,
                     }}
+                    className="min-w-0"
                   >
-                    <p className="mb-3 font-mono text-sm text-yellow-400">
+                    <p className="mb-3 font-mono text-sm text-yellow-400 wrap-anywhere">
                       {name.toLowerCase()}.txt
                     </p>
 
-                    <div className="border-2 border-[#364564] bg-[#111a30] p-7 shadow-xl">
+                    <div className="border-2 border-[#364564] bg-[#111a30] p-5 shadow-xl sm:p-7">
                       <PersonalityBit
                         label="how they text"
                         value={participant.textingStyle}
@@ -161,7 +175,7 @@ export default function AIAnalysisSection({
                     viewport={{
                       once: true,
                     }}
-                    className="border-2 border-yellow-400 bg-[#17213b] px-4 py-2 text-sm font-semibold shadow-lg"
+                    className="max-w-full border-2 border-yellow-400 bg-[#17213b] px-4 py-2 text-sm font-semibold shadow-lg wrap-anywhere"
                   >
                     {topic}
                   </motion.span>
@@ -202,7 +216,7 @@ function PersonalityBit({
     >
       <p className="mb-2 text-sm font-bold text-yellow-400">{label}:</p>
 
-      <p className="leading-7 text-[#c3ccdc]">{value}</p>
+      <p className="leading-7 text-[#c3ccdc] wrap-anywhere">{value}</p>
     </div>
   );
 }
@@ -236,7 +250,7 @@ function LoreList({ title, items }: { title: string; items: string[] }) {
               {String(index + 1).padStart(2, "0")}.
             </span>
 
-            <p className="leading-7 text-[#c1cadb]">{item}</p>
+            <p className="min-w-0 leading-7 text-[#c1cadb] wrap-anywhere">{item}</p>
           </motion.div>
         ))}
       </div>

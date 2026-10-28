@@ -54,7 +54,13 @@ def is_emoji_base(code: int):
 
 
 def extract_emojis(text: str):
-    """Group skin tones, ZWJ sequences, and flags into single emojis."""
+    """
+    Group skin tones, ZWJ sequences, and flags into single emojis.
+
+    This is a small range-based approximation, not full Unicode emoji
+    segmentation. Known gaps: keycaps (#️⃣), subdivision flags,
+    and emojis outside the checked ranges such as ⭐ or ⌚.
+    """
     emojis = []
     index = 0
 
