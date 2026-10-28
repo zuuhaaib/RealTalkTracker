@@ -1,11 +1,12 @@
 import json
 import math
 import os
-import re
 
 from dotenv import load_dotenv
 from openai import OpenAI
+
 from daily_quota import reserve_ai_attempt
+from analysis.message_content import split_message_content
 
 
 load_dotenv()
@@ -32,42 +33,27 @@ def get_client():
     return _client
 
 
-MEDIA_PLACEHOLDER_PATTERN = re.compile(
-    r"^(?:"
-    r"<media omitted>"
-    r"|<?(?:image|video|audio|gif|sticker|document|media) omitted>?"
-    r")$",
-    re.IGNORECASE,
-)
-
-
-def is_media_placeholder(text):
-    normalized = (
-        text.replace("\u200e", "")
-        .replace("\u200f", "")
-        .strip()
-    )
-
-    return bool(MEDIA_PLACEHOLDER_PATTERN.fullmatch(normalized))
-
-
 def build_message_sample(messages, max_messages=200):
     if max_messages <= 0:
         return []
 
-    # Filter before sampling so placeholders don't consume sample slots.
-    readable_messages = [
-        msg
-        for msg in messages
-        if msg["message"].strip()
-        and not is_media_placeholder(msg["message"])
-    ]
+    readable_messages = []
+
+    for msg in messages:
+        text, _ = split_message_content(msg["message"])
+
+        if text:
+            readable_messages.append({
+                "sender": msg["sender"],
+                "message": text,
+            })
 
     if len(readable_messages) <= max_messages:
         selected = readable_messages
     elif max_messages == 1:
         selected = [readable_messages[0]]
     else:
+        # Sample across the entire readable conversation.
         last_index = len(readable_messages) - 1
 
         indices = [
@@ -106,7 +92,9 @@ def validate_ai_analysis(data, expected_names):
     if not isinstance(funniest, dict):
         return False
 
-    if funniest.get("person") not in expected_names:
+    person = funniest.get("person")
+
+    if not isinstance(person, str) or person not in expected_names:
         return False
 
     if not isinstance(funniest.get("reason"), str):
@@ -170,12 +158,18 @@ def parse_ai_response(text, expected_names):
         data = json.loads(text)
     except (json.JSONDecodeError, RecursionError):
         return {
-            "error": "AI analysis returned an unreadable response. Please try again."
+            "error": (
+                "AI analysis returned an unreadable response. "
+                "Please try again."
+            )
         }
 
     if not validate_ai_analysis(data, expected_names):
         return {
-            "error": "AI analysis returned incomplete or unexpected results. Please try again."
+            "error": (
+                "AI analysis returned incomplete or unexpected results. "
+                "Please try again."
+            )
         }
 
     return data
@@ -190,6 +184,7 @@ def analyze_conversation_with_ai(
     topics,
 ):
     message_sample = build_message_sample(messages)
+
     if not message_sample:
         return {
             "error": (

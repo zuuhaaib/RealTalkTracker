@@ -2,6 +2,8 @@ import re
 from collections import Counter
 from datetime import datetime
 
+from analysis.message_content import split_message_content
+
 
 STOP_WORDS = {
     "the", "a", "an", "and", "or", "but", "if", "then", "so",
@@ -9,31 +11,11 @@ STOP_WORDS = {
     "this", "that", "i", "you", "me", "my", "your", "we", "our",
     "he", "she", "they", "them", "be", "am", "are", "was", "were",
     "do", "does", "did", "have", "has", "had", "can", "could",
-    "would", "should", "will", "just"
+    "would", "should", "will", "just",
 }
-
 
 URL_PATTERN = re.compile(r"https?://\S+")
 WORD_PATTERN = re.compile(r"\b[\w']+\b", re.UNICODE)
-
-MEDIA_MARKERS = [
-    "image omitted",
-    "video omitted",
-    "gif omitted",
-    "sticker omitted",
-    "document omitted",
-    "voice call",
-    "video call",
-    "missed voice call",
-    "<media omitted>",
-    "audio omitted",
-]
-
-
-def is_media_message(text: str):
-    lower = text.lower()
-
-    return any(marker in lower for marker in MEDIA_MARKERS)
 
 
 def extract_words(text: str):
@@ -69,7 +51,7 @@ def get_text_statistics(messages):
 
     for msg in messages:
         sender = msg["sender"]
-        text = msg["message"]
+        text, has_media = split_message_content(msg["message"])
         timestamp = datetime.fromisoformat(msg["timestamp"])
 
         if sender not in stats:
@@ -82,37 +64,33 @@ def get_text_statistics(messages):
                 "lateNightMessages": 0,
                 "longestMessage": {
                     "text": "",
-                    "characters": 0
-                }
+                    "characters": 0,
+                },
             }
 
         sender_stats = stats[sender]
 
-        if not is_media_message(text):
-            words = extract_words(text)
-            sender_stats["wordCounter"].update(words)
+        # Captions remain readable text even when media is present.
+        sender_stats["wordCounter"].update(extract_words(text))
+        sender_stats["emojiCounter"].update(extract_emojis(text))
 
-        emojis = extract_emojis(text)
-        sender_stats["emojiCounter"].update(emojis)
-
-        sender_stats["links"] += len(
-            URL_PATTERN.findall(text)
-        )
+        sender_stats["links"] += len(URL_PATTERN.findall(text))
 
         if "?" in text:
             sender_stats["questions"] += 1
 
-        if is_media_message(text):
+        # Count messages containing media, not individual attachments.
+        if has_media:
             sender_stats["mediaMessages"] += 1
 
-        # 12 AM to 5 AM
+        # Midnight through 4:59 AM, including media messages.
         if 0 <= timestamp.hour < 5:
             sender_stats["lateNightMessages"] += 1
 
         if len(text) > sender_stats["longestMessage"]["characters"]:
             sender_stats["longestMessage"] = {
                 "text": text,
-                "characters": len(text)
+                "characters": len(text),
             }
 
     result = {}
@@ -120,30 +98,18 @@ def get_text_statistics(messages):
     for sender, sender_stats in stats.items():
         result[sender] = {
             "topWords": [
-                {
-                    "word": word,
-                    "count": count
-                }
-                for word, count in sender_stats[
-                    "wordCounter"
-                ].most_common(10)
+                {"word": word, "count": count}
+                for word, count in sender_stats["wordCounter"].most_common(10)
             ],
-
             "topEmojis": [
-                {
-                    "emoji": emoji,
-                    "count": count
-                }
-                for emoji, count in sender_stats[
-                    "emojiCounter"
-                ].most_common(10)
+                {"emoji": emoji, "count": count}
+                for emoji, count in sender_stats["emojiCounter"].most_common(10)
             ],
-
             "links": sender_stats["links"],
             "questions": sender_stats["questions"],
             "mediaMessages": sender_stats["mediaMessages"],
             "lateNightMessages": sender_stats["lateNightMessages"],
-            "longestMessage": sender_stats["longestMessage"]
+            "longestMessage": sender_stats["longestMessage"],
         }
 
     return result
