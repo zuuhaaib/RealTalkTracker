@@ -5,6 +5,7 @@ import re
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from daily_quota import reserve_ai_attempt
 
 
 load_dotenv()
@@ -280,7 +281,18 @@ Conversation data:
 {json.dumps(analysis_data, ensure_ascii=False)}
 """
 
-    response = get_client().responses.create(
+    # Check the API key before consuming a daily slot.
+    client = get_client()
+
+    if not reserve_ai_attempt():
+        return {
+            "error": (
+                "the AI has clocked out for today. "
+                "the daily allowance resets at midnight Toronto time."
+            )
+        }
+
+    response = client.responses.create(
         model=os.getenv("OPENAI_MODEL", "gpt-5.6").strip() or "gpt-5.6",
         input=prompt,
     )
