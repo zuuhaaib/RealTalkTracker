@@ -1,3 +1,4 @@
+import logging
 import os
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -14,7 +15,10 @@ from analysis.text_stats import get_text_statistics
 from analysis.ai_analysis import analyze_conversation_with_ai
 
 
+logger = logging.getLogger("uvicorn.error")
+
 app = FastAPI()
+
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
@@ -32,39 +36,20 @@ app.add_middleware(
 )
 
 
-@app.get("/")
-def root():
-    return {"message": "Chat Analyzer API is running"}
-
-
-@app.post("/analyze")
-async def analyze_chat(file: UploadFile = File(...)):
-    if not file.filename or not file.filename.lower().endswith(".txt"):
-        raise HTTPException(
-            status_code=400,
-            detail="Please upload a .txt chat export.",
-        )
-
-    contents = await file.read(MAX_FILE_SIZE + 1)
-
-    if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail="This file is too large. Please upload a file under 10 MiB.",
-        )
-
-    if not contents.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="This file is empty. Please upload a chat export.",
-        )
-
+def process_chat(contents: bytes):
+    """Run decoding, parsing, statistics, and AI analysis in a worker."""
     try:
         text = contents.decode("utf-8-sig")
     except UnicodeDecodeError:
         raise HTTPException(
             status_code=400,
             detail="Unable to read this text file.",
+        ) from None
+
+    if not text.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="This file is empty. Please upload a chat export.",
         )
 
     messages = parse_whatsapp_chat(text)
@@ -86,12 +71,12 @@ async def analyze_chat(file: UploadFile = File(...)):
     activity = get_activity_statistics(messages)
     text_stats = get_text_statistics(messages)
 
+    # Keep these hooks for future local sentiment/topic analysis.
     sentiment = {}
     topics = []
 
     try:
-        ai_analysis = await run_in_threadpool(
-            analyze_conversation_with_ai,
+        ai_analysis = analyze_conversation_with_ai(
             messages,
             stats,
             behavior,
@@ -99,7 +84,13 @@ async def analyze_chat(file: UploadFile = File(...)):
             sentiment,
             topics,
         )
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "AI analysis failed: type=%s status=%s",
+            type(exc).__name__,
+            getattr(exc, "status_code", None),
+        )
+
         ai_analysis = {
             "error": "AI analysis is temporarily unavailable."
         }
@@ -116,3 +107,36 @@ async def analyze_chat(file: UploadFile = File(...)):
         "topics": topics,
         "aiAnalysis": ai_analysis,
     }
+
+
+@app.get("/")
+def root():
+    return {"message": "Chat Analyzer API is running"}
+
+
+@app.post("/analyze")
+async def analyze_chat(file: UploadFile = File(...)):
+    if not file.filename or not file.filename.lower().endswith(".txt"):
+        raise HTTPException(
+            status_code=400,
+            detail="Please upload a .txt chat export.",
+        )
+
+    try:
+        contents = await file.read(MAX_FILE_SIZE + 1)
+    finally:
+        await file.close()
+
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="This file is too large. Please upload a file under 10 MiB.",
+        )
+
+    if not contents.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="This file is empty. Please upload a chat export.",
+        )
+
+    return await run_in_threadpool(process_chat, contents)

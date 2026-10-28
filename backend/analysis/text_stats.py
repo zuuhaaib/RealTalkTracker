@@ -25,6 +25,8 @@ MEDIA_MARKERS = [
     "voice call",
     "video call",
     "missed voice call",
+    "<media omitted>",
+    "audio omitted",
 ]
 
 

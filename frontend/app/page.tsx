@@ -13,7 +13,12 @@ import AIAnalysisSection from "../components/AIAnalysisSection";
 import ParticipantStatsSection from "../components/ParticipantStats";
 import UploadSection from "../components/UploadSection";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL?.trim() ||
+  (process.env.NODE_ENV === "development" ? "http://127.0.0.1:8000" : "")
+).replace(/\/+$/, "");
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
@@ -22,6 +27,15 @@ export default function Home() {
   const [error, setError] = useState("");
 
   async function handleAnalyze() {
+    if (loading) return;
+
+    if (!API_URL) {
+      setError(
+        "the server address hasn’t been configured yet. check back soon",
+      );
+      return;
+    }
+
     if (!file) {
       setError("bro upload the chat first");
       return;
@@ -33,7 +47,6 @@ export default function Home() {
 
     try {
       const formData = new FormData();
-
       formData.append("file", file);
 
       const response = await fetch(`${API_URL}/analyze`, {
@@ -41,18 +54,48 @@ export default function Home() {
         body: formData,
       });
 
-      const result = await response.json();
+      const contentType = response.headers.get("content-type") ?? "";
+
+      if (!contentType.toLowerCase().includes("application/json")) {
+        if (response.status === 413) {
+          throw new Error("that file is too big. keep it under 10 MiB pls");
+        }
+
+        throw new Error(
+          response.ok
+            ? "the server sent an unexpected response. try again"
+            : `the server hit a snag (${response.status}). try again shortly`,
+        );
+      }
+
+      let result;
+
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error(
+          "the server sent an unreadable response. try again shortly",
+        );
+      }
 
       if (!response.ok) {
-        throw new Error(result.detail || "something went wrong");
+        throw new Error(
+          typeof result?.detail === "string"
+            ? result.detail
+            : `couldn’t analyze this chat (${response.status}). try again`,
+        );
       }
 
       setData(result);
     } catch (err) {
-      if (err instanceof Error) {
+      if (err instanceof TypeError) {
+        setError(
+          "couldn’t reach the server. check your connection and make sure the backend is running",
+        );
+      } else if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("something went wrong");
+        setError("something went wrong. try again");
       }
     } finally {
       setLoading(false);
@@ -60,10 +103,25 @@ export default function Home() {
   }
 
   function selectFile(selectedFile: File | null) {
-    if (!selectedFile) return;
+    if (!selectedFile || loading) return;
+
+    setData(null);
 
     if (!selectedFile.name.toLowerCase().endsWith(".txt")) {
+      setFile(null);
       setError("txt files only pls");
+      return;
+    }
+
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      setFile(null);
+      setError("that’s a lot of lore. keep the file under 10 MiB pls");
+      return;
+    }
+
+    if (selectedFile.size === 0) {
+      setFile(null);
+      setError("this file has no lore. try a chat export with messages");
       return;
     }
 
@@ -83,7 +141,7 @@ export default function Home() {
           "radial-gradient(circle at 50% 10%, #263a5a 0%, #1a2942 28%, #111a2d 58%, #0a1020 100%)",
       }}
     >
-      {/* little noise-ish background circles */}
+      {/* BACKGROUND */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -left-40 top-32 h-96 w-96 rounded-full bg-yellow-300/[0.035] blur-3xl" />
         <div className="absolute -right-32 top-[600px] h-[500px] w-[500px] rounded-full bg-blue-300/[0.04] blur-3xl" />
@@ -226,6 +284,7 @@ export default function Home() {
                 <p className="mt-2 text-lg text-[#8190ad]">
                   messages analyzed for reasons nobody can adequately explain
                 </p>
+
                 <p className="mt-3 text-sm font-semibold text-yellow-400">
                   detected: {data.platform}
                 </p>

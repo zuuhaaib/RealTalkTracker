@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import re
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -21,29 +22,62 @@ def get_client():
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY is not configured.")
 
-        _client = OpenAI(api_key=api_key)
+        _client = OpenAI(
+            api_key=api_key,
+            timeout=60.0,
+            max_retries=0,
+        )
 
     return _client
+
+
+MEDIA_PLACEHOLDER_PATTERN = re.compile(
+    r"^(?:"
+    r"<media omitted>"
+    r"|<?(?:image|video|audio|gif|sticker|document|media) omitted>?"
+    r")$",
+    re.IGNORECASE,
+)
+
+
+def is_media_placeholder(text):
+    normalized = (
+        text.replace("\u200e", "")
+        .replace("\u200f", "")
+        .strip()
+    )
+
+    return bool(MEDIA_PLACEHOLDER_PATTERN.fullmatch(normalized))
 
 
 def build_message_sample(messages, max_messages=200):
     if max_messages <= 0:
         return []
 
-    if len(messages) <= max_messages:
-        selected = messages
+    # Filter before sampling so placeholders don't consume sample slots.
+    readable_messages = [
+        msg
+        for msg in messages
+        if msg["message"].strip()
+        and not is_media_placeholder(msg["message"])
+    ]
+
+    if len(readable_messages) <= max_messages:
+        selected = readable_messages
     elif max_messages == 1:
-        selected = [messages[0]]
+        selected = [readable_messages[0]]
     else:
-        # Sample across the entire conversation, including both ends.
-        last_index = len(messages) - 1
+        last_index = len(readable_messages) - 1
 
         indices = [
             round(i * last_index / (max_messages - 1))
             for i in range(max_messages)
         ]
 
-        selected = [messages[index] for index in indices]
+        selected = [
+            readable_messages[index]
+            for index in indices
+        ]
 
     return [
         {
@@ -155,6 +189,13 @@ def analyze_conversation_with_ai(
     topics,
 ):
     message_sample = build_message_sample(messages)
+    if not message_sample:
+        return {
+            "error": (
+                "This chat has no readable text messages for AI analysis. "
+                "Your chat statistics are still available."
+            )
+        }
 
     # Limit the longest message sent to OpenAI without changing
     # the original text statistics returned by the API.
@@ -240,7 +281,7 @@ Conversation data:
 """
 
     response = get_client().responses.create(
-        model="gpt-5.6",
+        model=os.getenv("OPENAI_MODEL", "gpt-5.6").strip() or "gpt-5.6",
         input=prompt,
     )
 
