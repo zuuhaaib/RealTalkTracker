@@ -120,13 +120,6 @@ async def analyze_chat(
     request: Request,
     file: UploadFile = File(...),
 ):
-    print(
-        "PROXY_CHECK",
-        "peer=", repr(request.client.host if request.client else None),
-        "forwarded=", repr(request.headers.get("x-forwarded-for")),
-        "cf_client=", repr(request.headers.get("cf-connecting-ip")),
-        flush=True,
-    )
     client_ip = "shared-analysis-limit"
 
     # Use the connection address, not an unverified forwarded header.
