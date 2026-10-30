@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, MessageCircleMore } from "lucide-react";
@@ -13,7 +13,6 @@ import ActivitySection from "../../components/ActivitySection";
 import AIAnalysisSection from "../../components/AIAnalysisSection";
 import ParticipantStatsSection from "../../components/ParticipantStats";
 import UploadSection from "../../components/UploadSection";
-import ExportGuide from "../../components/ExportGuide";
 
 const API_URL = (
   process.env.NEXT_PUBLIC_API_URL?.trim() ||
@@ -27,14 +26,6 @@ export default function AnalyzePage() {
   const [data, setData] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (window.location.hash !== "#export-guide") return;
-
-    document
-      .getElementById("export-guide")
-      ?.scrollIntoView({ behavior: "instant", block: "start" });
-  }, []);
 
   async function handleAnalyze() {
     if (loading) return;
@@ -140,6 +131,7 @@ export default function AnalyzePage() {
   }
 
   const participants = data ? Object.entries(data.statistics.participants) : [];
+
   const participantNames = participants.map(([name]) => name).join(" vs ");
 
   return (
@@ -151,14 +143,20 @@ export default function AnalyzePage() {
       }}
     >
       {/* BACKGROUND */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 overflow-hidden"
+      >
         <div className="absolute -left-40 top-32 h-96 w-96 rounded-full bg-yellow-300/[0.035] blur-3xl" />
         <div className="absolute -right-32 top-[600px] h-[500px] w-[500px] rounded-full bg-blue-300/[0.04] blur-3xl" />
       </div>
 
       <div className="relative">
         {/* NAV */}
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
+        <nav
+          aria-label="Main navigation"
+          className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10"
+        >
           <Link
             href="/"
             aria-label="TalkTracker home"
@@ -205,12 +203,12 @@ export default function AnalyzePage() {
               the statistics, awards, and potentially unnecessary observations.
             </p>
 
-            <a
-              href="#export-guide"
-              className="mt-6 inline-block text-sm font-semibold text-yellow-400 underline decoration-yellow-400/40 underline-offset-4 transition hover:text-yellow-200"
+            <Link
+              href="/guide"
+              className="mt-6 inline-block text-sm font-semibold text-yellow-400 underline decoration-yellow-400/40 underline-offset-4 transition hover:text-yellow-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-yellow-400"
             >
               wait, how do i get my chat file?
-            </a>
+            </Link>
 
             <p className="mt-5 text-sm italic text-[#8190ad]">
               no screenshots. no passwords. just the lore.
@@ -226,12 +224,13 @@ export default function AnalyzePage() {
           />
         </section>
 
-        {/* TUTORIAL */}
-        <ExportGuide />
-
         {/* LOADING */}
         {loading && (
-          <section className="mx-auto max-w-3xl px-6 pb-24">
+          <section
+            aria-live="polite"
+            aria-busy="true"
+            className="mx-auto max-w-3xl px-6 pb-24"
+          >
             <div className="border-l-4 border-yellow-400 pl-6">
               <motion.p
                 animate={{ opacity: [0.4, 1, 0.4] }}
@@ -329,7 +328,10 @@ export default function AnalyzePage() {
 function LoadingLine({ children }: { children: ReactNode }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="h-2 w-2 rounded-full bg-yellow-400" />
+      <span
+        aria-hidden="true"
+        className="h-2 w-2 shrink-0 rounded-full bg-yellow-400"
+      />
       <span>{children}</span>
     </div>
   );
