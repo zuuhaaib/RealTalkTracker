@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import type { ReactNode } from "react";
-import { motion } from "framer-motion";
-import { ArrowLeft, MessageCircleMore } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import type { AnalyzeResponse } from "../../types/analysis";
-import { Section, YellowLabel } from "../../components/ui";
+import { getBrowserSupabase } from "../../lib/supabase/client";
+import {
+  SiteFooter,
+  SiteHeader,
+  SkipLink,
+  container,
+} from "../../components/ui";
 import AwardsSection from "../../components/AwardsSection";
 import ActivitySection from "../../components/ActivitySection";
 import AIAnalysisSection from "../../components/AIAnalysisSection";
@@ -21,11 +24,26 @@ const API_URL = (
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
+// Back to the login page, then straight back here once signed in.
+function sendToLogin(reason: "expired") {
+  // A full page load, so the proxy re-checks the (now cleared) session
+  // instead of the router reusing a cached page.
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+  window.location.assign(`/login?next=%2Fanalyze&error=${reason}`);
+}
+
 export default function AnalyzePage() {
   const [file, setFile] = useState<File | null>(null);
   const [data, setData] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const resultsHeading = useRef<HTMLHeadingElement>(null);
+
+  // Move focus to the results when they arrive, so keyboard and screen
+  // reader users land on them instead of a disabled button.
+  useEffect(() => {
+    if (data) resultsHeading.current?.focus();
+  }, [data]);
 
   async function handleAnalyze() {
     if (loading) return;
@@ -47,13 +65,31 @@ export default function AnalyzePage() {
     setData(null);
 
     try {
+      // The backend only analyzes chats for signed-in users.
+      const supabase = getBrowserSupabase();
+      const session = supabase
+        ? (await supabase.auth.getSession()).data.session
+        : null;
+
+      if (!supabase || !session) {
+        sendToLogin("expired");
+        return;
+      }
+
       const formData = new FormData();
       formData.append("file", file);
 
       const response = await fetch(`${API_URL}/analyze`, {
         method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
         body: formData,
       });
+
+      if (response.status === 401) {
+        await supabase.auth.signOut();
+        sendToLogin("expired");
+        return;
+      }
 
       const contentType = response.headers.get("content-type") ?? "";
 
@@ -135,85 +171,33 @@ export default function AnalyzePage() {
   const participantNames = participants.map(([name]) => name).join(" vs ");
 
   return (
-    <main
-      className="min-h-screen overflow-hidden text-white"
-      style={{
-        background:
-          "radial-gradient(circle at 50% 10%, #263a5a 0%, #1a2942 28%, #111a2d 58%, #0a1020 100%)",
-      }}
-    >
-      {/* BACKGROUND */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 overflow-hidden"
-      >
-        <div className="absolute -left-40 top-32 h-96 w-96 rounded-full bg-yellow-300/[0.035] blur-3xl" />
-        <div className="absolute -right-32 top-[600px] h-[500px] w-[500px] rounded-full bg-blue-300/[0.04] blur-3xl" />
-      </div>
+    <>
+      <SkipLink />
+      <SiteHeader current="analyze" />
 
-      <div className="relative">
-        {/* NAV */}
-        <nav
-          aria-label="Main navigation"
-          className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10"
-        >
-          <Link
-            href="/"
-            aria-label="TalkTracker home"
-            className="flex items-center gap-3"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-400 text-[#0b132b] shadow-lg">
-              <MessageCircleMore size={20} aria-hidden="true" />
-            </span>
-
-            <span className="text-lg font-bold tracking-tight">
-              talktracker
-            </span>
-          </Link>
-
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-sm text-[#b6c0d3] transition hover:text-yellow-400"
-          >
-            <ArrowLeft size={16} aria-hidden="true" />
-            back home
-          </Link>
-        </nav>
-
+      <main id="main-content" className={`${container} pt-8 sm:pt-12`}>
         {/* UPLOAD */}
-        <section className="mx-auto grid max-w-7xl items-center gap-14 px-6 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:px-10 lg:py-20">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <p className="mb-5 text-sm font-semibold text-yellow-400">
-              alright. let&apos;s see the evidence.
-            </p>
-
-            <h1 className="max-w-3xl text-5xl font-black leading-[0.98] tracking-tight sm:text-6xl">
-              upload the chat.
-              <span className="block text-yellow-400">
-                we&apos;ll overthink it.
-              </span>
+        <section
+          aria-labelledby="upload-title"
+          className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16"
+        >
+          <div>
+            <h1
+              id="upload-title"
+              className="font-display text-4xl font-semibold leading-tight tracking-tight sm:text-5xl"
+            >
+              upload the chat. we’ll overthink it.
             </h1>
 
-            <p className="mt-7 max-w-xl text-lg leading-8 text-[#b6c0d3]">
-              bring your WhatsApp or Instagram text export. we&apos;ll handle
-              the statistics, awards, and potentially unnecessary observations.
+            <p className="mt-4 max-w-md text-lg leading-relaxed text-muted">
+              bring your WhatsApp or Instagram text export. we’ll handle the
+              statistics, awards, and potentially unnecessary observations.
             </p>
 
-            <Link
-              href="/guide"
-              className="mt-6 inline-block text-sm font-semibold text-yellow-400 underline decoration-yellow-400/40 underline-offset-4 transition hover:text-yellow-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-yellow-400"
-            >
+            <Link href="/guide" className="text-link mt-6 inline-block">
               wait, how do i get my chat file?
             </Link>
-
-            <p className="mt-5 text-sm italic text-[#8190ad]">
-              no screenshots. no passwords. just the lore.
-            </p>
-          </motion.div>
+          </div>
 
           <UploadSection
             file={file}
@@ -225,73 +209,59 @@ export default function AnalyzePage() {
         </section>
 
         {/* LOADING */}
-        {loading && (
-          <section
-            aria-live="polite"
-            aria-busy="true"
-            className="mx-auto max-w-3xl px-6 pb-24"
-          >
-            <div className="border-l-4 border-yellow-400 pl-6">
-              <motion.p
-                animate={{ opacity: [0.4, 1, 0.4] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-                className="text-2xl font-bold text-yellow-400"
-              >
-                reading years of lore...
-              </motion.p>
+        <div aria-live="polite" aria-busy={loading}>
+          {loading && (
+            <section aria-label="Analysis in progress" className="card mt-12 p-6 sm:p-8">
+              <p className="font-display text-2xl font-semibold tracking-tight">
+                reading years of lore…
+              </p>
 
-              <div className="mt-6 space-y-3 text-[#94a3b8]">
-                <LoadingLine>
-                  counting every unnecessary double text
-                </LoadingLine>
-
+              <ul className="mt-4 space-y-2 text-muted">
+                <LoadingLine>counting every unnecessary double text</LoadingLine>
                 <LoadingLine>
                   figuring out who refuses to start conversations
                 </LoadingLine>
-
                 <LoadingLine>
                   checking what time you people should have been asleep
                 </LoadingLine>
-
                 <LoadingLine>asking a machine who is funnier</LoadingLine>
-
                 <LoadingLine>
                   preparing potentially friendship-ending statistics
                 </LoadingLine>
-              </div>
-            </div>
-          </section>
-        )}
+              </ul>
+            </section>
+          )}
+        </div>
 
         {/* RESULTS */}
         {data && (
-          <>
-            <Section>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.97 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                className="text-center"
-              >
-                <YellowLabel>the damage</YellowLabel>
-
-                <h2 className="mt-5 text-4xl font-bold text-white wrap-anywhere sm:text-6xl">
+          <div className="mt-20 space-y-20 sm:mt-24 sm:space-y-24">
+            <section
+              aria-labelledby="results-title"
+              className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="text-sm text-muted">the damage</p>
+                <h2
+                  id="results-title"
+                  ref={resultsHeading}
+                  tabIndex={-1}
+                  className="mt-1 font-display text-4xl font-semibold tracking-tight [overflow-wrap:anywhere] focus:outline-none sm:text-5xl"
+                >
                   {participantNames}
                 </h2>
+              </div>
 
-                <p className="mt-10 text-[90px] font-black leading-none text-yellow-400 sm:text-[130px]">
+              <div className="shrink-0 sm:text-right">
+                <p className="font-display text-5xl font-semibold tracking-tight text-accent tabular-nums">
                   {data.messageCount.toLocaleString()}
                 </p>
-
-                <p className="mt-2 text-lg text-[#8190ad]">
-                  messages analyzed for reasons nobody can adequately explain
-                </p>
-
-                <p className="mt-3 text-sm font-semibold text-yellow-400">
+                <p className="mt-1 max-w-xs text-sm text-muted">
+                  messages analyzed for reasons nobody can adequately explain.
                   detected: {data.platform}
                 </p>
-              </motion.div>
-            </Section>
+              </div>
+            </section>
 
             <ParticipantStatsSection
               statistics={data.statistics}
@@ -306,33 +276,20 @@ export default function AnalyzePage() {
             <ActivitySection activity={data.activity} />
 
             <AIAnalysisSection analysis={data.aiAnalysis} />
-          </>
-        )}
-
-        {/* FOOTER */}
-        <footer className="border-t border-[#33415d] bg-[#091126]/50">
-          <div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 px-6 py-8 text-sm text-[#8190ad] sm:flex-row lg:px-10">
-            <p>
-              built by{" "}
-              <span className="font-semibold text-yellow-400">zuhaib khan</span>
-            </p>
-
-            <p>statistics, inside jokes, and questionable judgment.</p>
           </div>
-        </footer>
-      </div>
-    </main>
+        )}
+      </main>
+
+      <SiteFooter line="statistics, inside jokes, and questionable judgment." />
+    </>
   );
 }
 
-function LoadingLine({ children }: { children: ReactNode }) {
+function LoadingLine({ children }: { children: string }) {
   return (
-    <div className="flex items-center gap-3">
-      <span
-        aria-hidden="true"
-        className="h-2 w-2 shrink-0 rounded-full bg-yellow-400"
-      />
+    <li className="flex items-center gap-3">
+      <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
       <span>{children}</span>
-    </div>
+    </li>
   );
 }

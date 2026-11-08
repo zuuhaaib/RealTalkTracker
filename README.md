@@ -26,6 +26,7 @@ Upload a WhatsApp or copied Instagram conversation and find out who yaps more, r
 | Backend                    | Python, FastAPI                          |
 | AI                         | OpenAI API                               |
 | Persistent daily allowance | Upstash Redis                            |
+| Accounts                   | Supabase Auth (email, password, Google)  |
 | Hosting                    | Vercel frontend, Render backend          |
 
 ## run it locally
@@ -36,6 +37,7 @@ You’ll need:
 - Node.js 20.9 or newer, as Next.js 16 requires. CI uses Node 22.
 - An OpenAI API key for AI analysis.
 - An Upstash Redis database and a write-capable REST token for the daily allowance.
+- A Supabase project for accounts. Analyzing a chat requires signing in; see [accounts](#accounts) below.
 
 The instructions below use Windows PowerShell. Open the project folder in VS Code and use two terminals.
 
@@ -68,6 +70,9 @@ FRONTEND_URL=http://localhost:3000
 UPSTASH_REDIS_REST_URL=your_upstash_rest_url
 UPSTASH_REDIS_REST_TOKEN=your_upstash_rest_token
 AI_DAILY_LIMIT=20
+
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 ```
 
 Use the regular Upstash REST token, not the read-only token. The backend needs to update the counter.
@@ -81,7 +86,7 @@ uvicorn main:app --reload
 - API: http://127.0.0.1:8000
 - Interactive API documentation: http://127.0.0.1:8000/docs
 
-Without working OpenAI and quota-store configuration, statistical analysis can still work, but AI analysis will be unavailable.
+Without working OpenAI and quota-store configuration, statistical analysis can still work, but AI analysis will be unavailable. Without the Supabase values, every analysis request is refused with `503`, because nobody can be signed in.
 
 ### 2. Frontend
 
@@ -100,10 +105,12 @@ if (!(Test-Path .env.local)) {
 }
 ```
 
-Set this in `frontend/.env.local`:
+Set these in `frontend/.env.local`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 ```
 
 Start the frontend:
@@ -114,7 +121,7 @@ npm run dev
 
 Open http://localhost:3000 and keep both servers running.
 
-Restart the relevant server after changing environment variables. For a deployed frontend, rebuild and redeploy after changing `NEXT_PUBLIC_API_URL`.
+Restart the relevant server after changing environment variables. For a deployed frontend, rebuild and redeploy after changing any `NEXT_PUBLIC_` value.
 
 ## configuration
 
@@ -126,9 +133,13 @@ Restart the relevant server after changing environment variables. For a deployed
 | `backend/.env`        | `UPSTASH_REDIS_REST_URL`   | REST endpoint for the persistent daily counter                |
 | `backend/.env`        | `UPSTASH_REDIS_REST_TOKEN` | Write-capable REST token                                      |
 | `backend/.env`        | `AI_DAILY_LIMIT`           | Shared AI attempts per Toronto calendar day; defaults to `20` |
+| `backend/.env`        | `SUPABASE_URL`             | Supabase project URL, used to verify each sign-in token       |
+| `backend/.env`        | `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable (anon) key, sent with that check         |
 | `frontend/.env.local` | `NEXT_PUBLIC_API_URL`      | Backend URL used by the browser                               |
+| `frontend/.env.local` | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL for signing in                           |
+| `frontend/.env.local` | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable (anon) key for signing in    |
 
-`NEXT_PUBLIC_` values are visible in the browser. Your backend’s public URL belongs there. Your OpenAI key and Redis token absolutely do not.
+`NEXT_PUBLIC_` values are visible in the browser. Your backend’s public URL and Supabase’s publishable key belong there; Supabase designs that key to be public. Your OpenAI key, Redis token and Supabase secret key absolutely do not.
 
 Commit the example environment files with placeholders. Never commit real environment files, credentials, or private chat exports.
 
@@ -136,14 +147,32 @@ Commit the example environment files with placeholders. Never commit real enviro
 
 - Set `NEXT_PUBLIC_API_URL` in Vercel to the public Render backend URL.
 - Set `FRONTEND_URL` in Render to the frontend’s production origin, without a trailing slash.
-- Store OpenAI and Upstash credentials in Render’s environment settings.
+- Store OpenAI and Upstash credentials in Render’s environment settings, with `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
+- Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in Vercel to the same project’s values.
 - Run the Render backend with one worker and one service instance while using the current in-memory request limiter:
 
 ```bash
 uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
 ```
 
-The public API URL is configuration, not a secret. CORS is not authentication, and the API doesn’t use cookies, so CORS credentials are disabled.
+The public API URL is configuration, not a secret. CORS is not authentication, and the API doesn’t use cookies (sign-in travels as a bearer token header), so CORS credentials are disabled.
+
+## accounts
+
+Analyzing a chat requires a free account. Accounts are Supabase users, with email and password or with Google; TalkTracker stores nothing about them itself.
+
+- `/register` creates an account and `/login` signs in. Both are in TalkTracker’s own design.
+- Both pages also offer **Continue with Google**. The first Google sign-in creates the account; later ones log in. The button only appears when the Google provider is enabled in the Supabase project, and Google sends people back through `/auth/confirm`.
+- `frontend/proxy.ts` sends signed-out visitors from `/analyze` to `/login` (and back again after signing in), and sends signed-in visitors away from the login and register pages.
+- The upload sends the Supabase access token as `Authorization: Bearer …`. `backend/auth.py` asks Supabase (`GET /auth/v1/user`) whether that token belongs to a signed-in user before reading the file, so a signed-out request never takes a processing slot or uses the minute allowance.
+- An expired or revoked session gets `401`, and the page sends the visitor back to log in.
+
+To set up a Supabase project:
+
+1. Create a project at supabase.com. Copy the project URL and the publishable (anon) key from **Project Settings → API keys** into both environment files.
+2. Under **Authentication → URL Configuration**, set the Site URL to your frontend (http://localhost:3000 locally) and add `http://localhost:3000/auth/confirm` plus your production `/auth/confirm` URL to the redirect URLs.
+3. For Google sign-in, enable the Google provider under **Authentication → Sign In / Providers**, with a Google Cloud OAuth client ID and secret. In Google Cloud, the OAuth client’s authorized redirect URI is the callback URL Supabase shows on that page (`https://<project>.supabase.co/auth/v1/callback`).
+4. Email confirmation is on by default: new users get a link that lands on `/auth/confirm` and signs them in. Supabase’s built-in email sender is rate-limited, so configure your own SMTP before real traffic, or turn confirmation off under **Authentication → Sign In / Providers → Email**.
 
 ## feed it the lore
 
@@ -269,7 +298,7 @@ The displayed confidence is a model-generated impression, not a calibrated proba
 
 Only upload conversations you have permission to share.
 
-Upstash receives quota keys and counters, not chat content. OpenAI receives the analysis inputs described above, including real participant names; pseudonymization is not currently implemented.
+Supabase stores each account’s email address and password hash; it never receives chat content. Upstash receives quota keys and counters, not chat content. OpenAI receives the analysis inputs described above, including real participant names; pseudonymization is not currently implemented.
 
 Application code does not explicitly save uploaded chats as permanent files. That does not establish what temporary upload handling, hosting infrastructure, or external providers retain.
 
@@ -314,6 +343,7 @@ The cost of this is fairness: one visitor can use up the minute allowance or the
 
 backend/
   main.py
+  auth.py                checks the Supabase sign-in token on each upload
   request_limits.py
   daily_quota.py
   requirements.txt
@@ -333,19 +363,30 @@ backend/
   tests/
 
 frontend/
+  proxy.ts               keeps the session fresh; guards /analyze
   app/
     page.tsx             landing page (/)
     analyze/page.tsx     upload and results (/analyze)
+    guide/page.tsx       export guide (/guide)
+    login/page.tsx       log in (/login)
+    register/page.tsx    create an account (/register)
+    auth/confirm/route.ts  email confirmation links and Google sign-in land here
     layout.tsx
     globals.css
   components/
     ActivitySection.tsx
     AIAnalysisSection.tsx
+    AuthForm.tsx         the login and register form
+    AuthNav.tsx          log in / sign up / log out in the header
+    GoogleButton.tsx     Continue with Google
     AwardsSection.tsx
     ExportGuide.tsx
     ParticipantStats.tsx
     UploadSection.tsx
     ui.tsx
+  lib/
+    demoChat.ts          the landing page’s fictional chat and its numbers
+    supabase/            Supabase settings and the browser client
   types/
     analysis.ts
 ```
@@ -378,8 +419,9 @@ The tests cover:
 - AI sampling, the output schema, and validation.
 - Refusal, cut-off, and timeout handling.
 - Quota handling and upload/rate-limit behavior.
+- Sign-in checks: missing, expired and valid tokens, an unconfigured server, Supabase being unreachable, and that rejected requests use no allowance.
 
-OpenAI and the quota store are always mocked.
+OpenAI, the quota store and Supabase are always mocked.
 
 They do not spend OpenAI credits or change the live daily allowance.
 
@@ -412,6 +454,12 @@ Representative exports and the AI fallback should also be tested manually. The R
 | No messages detected            | Compare the export layout with the supported examples                                          |
 | AI unavailable but stats appear | Check OpenAI configuration, Upstash configuration, backend error logs, and the daily allowance |
 | `429` response                  | The shared minute allowance is exhausted; wait before retrying                                 |
+| `401` response, sent to log in  | The session expired or was signed out; log in again                                            |
+| Login page says sign-in isn’t set up | Set the `NEXT_PUBLIC_SUPABASE_` values in `frontend/.env.local` (or Vercel), then restart or redeploy |
+| `503` “sign-in isn’t configured” | Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` on the backend                              |
+| No Google button on login       | Enable the Google provider in Supabase; the button appears once it’s on |
+| Google sign-in returns to login with a note | It was cancelled, or the `/auth/confirm` URL isn’t in Supabase’s redirect URLs |
+| Confirmation link doesn’t sign in | Add your `/auth/confirm` URL to Supabase’s redirect URLs, and open the link in the same browser |
 | `503` response                  | Processing capacity is full, or the limiter cannot admit another request                       |
 | Incorrect activity dates        | Check the export’s day/month convention                                                        |
 | Tests report zero cases         | Use the explicit discovery command above and keep `tests/__init__.py`                          |

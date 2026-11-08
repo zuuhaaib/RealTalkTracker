@@ -34,12 +34,25 @@ class UploadLimitTests(unittest.IsolatedAsyncioTestCase):
         self.ai_mock = ai_patch.start()
         self.addCleanup(ai_patch.stop)
 
+        # Sign-in is covered in test_auth.py; treat every upload here as
+        # coming from a signed-in user.
+        auth_patch = patch.object(
+            main,
+            "verify_user",
+            return_value={"id": "user-1"},
+        )
+        auth_patch.start()
+        self.addCleanup(auth_patch.stop)
+
     async def upload(self, filename, contents):
         file = UploadFile(
             filename=filename,
             file=io.BytesIO(contents),
         )
-        return await main.analyze_chat(file=file)
+        return await main.analyze_chat(
+            file=file,
+            authorization="Bearer test-token",
+        )
 
     async def test_invalid_uploads_do_not_use_rate_allowance(self):
         invalid_files = [

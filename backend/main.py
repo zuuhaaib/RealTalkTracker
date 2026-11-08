@@ -1,10 +1,11 @@
 import logging
 import os
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
+from auth import verify_user
 from request_limits import analysis_limiter
 from parsers.whatsapp import parse_whatsapp_chat
 from parsers.instagram import parse_instagram_chat
@@ -36,7 +37,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         frontend_url,
     ],
-    # The upload uses no cookies or auth headers.
+    # Sign-in travels as a bearer token header, not as cookies.
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -126,10 +127,17 @@ def root():
 
 
 @app.post("/analyze")
-async def analyze_chat(file: UploadFile = File(...)):
+async def analyze_chat(
+    file: UploadFile = File(...),
+    authorization: str | None = Header(default=None),
+):
     slot_acquired = False
 
     try:
+        # Check the sign-in first, so rejected requests never take a
+        # processing slot or use the shared rate allowance.
+        await verify_user(authorization)
+
         if not file.filename or not file.filename.lower().endswith(".txt"):
             raise HTTPException(
                 status_code=400,

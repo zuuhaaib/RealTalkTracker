@@ -1,8 +1,27 @@
-"use client";
-
-import { motion } from "framer-motion";
 import type { AnalyzeResponse } from "../types/analysis";
-import { Section, SectionTitle } from "./ui";
+import { SectionHeading } from "./ui";
+
+// Identity colours for people in the share bar and on their panels.
+// Each clears 3:1 against the cream ground, the bar for graphics.
+const personColors = ["#2f5d3a", "#e2632a", "#3b5b8c", "#a8841b", "#b8506a", "#2a8279"];
+
+function formatResponseTime(seconds: number | null) {
+  if (seconds === null) return "n/a";
+
+  if (seconds < 60) {
+    return `${Math.round(seconds)} sec`;
+  }
+
+  if (seconds < 3600) {
+    return `${Math.round(seconds / 60)} min`;
+  }
+
+  if (seconds < 86400) {
+    return `${(seconds / 3600).toFixed(1)} hr`;
+  }
+
+  return `${(seconds / 86400).toFixed(1)} days`;
+}
 
 export default function ParticipantStatsSection({
   statistics,
@@ -40,186 +59,120 @@ export default function ParticipantStatsSection({
     },
   ];
 
-  function formatResponseTime(seconds: number | null) {
-    if (seconds === null) return "n/a";
-
-    if (seconds < 60) {
-      return `${Math.round(seconds)} sec`;
-    }
-
-    if (seconds < 3600) {
-      return `${Math.round(seconds / 60)} min`;
-    }
-
-    if (seconds < 86400) {
-      return `${(seconds / 3600).toFixed(1)} hr`;
-    }
-
-    return `${(seconds / 86400).toFixed(1)} days`;
-  }
-
   return (
-    <Section dark>
-      {/* HEAD TO HEAD */}
-      <SectionTitle
-        eyebrow="head to head"
+    <section aria-labelledby="head-to-head-title">
+      <SectionHeading
+        id="head-to-head-title"
         title="so who talks more?"
-        text="the cold hard numbers. no AI opinions involved yet."
+        intro="the cold hard numbers. no AI opinions involved yet."
       />
 
       {/* Names live in the legend below, so long names never get clipped
           inside narrow bar segments. */}
       <div
         aria-hidden="true"
-        className="flex h-8 overflow-hidden rounded-lg border-2 border-[#344363] bg-[#0b132b]"
+        className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-panel-2"
       >
         {participants.map(([name, stats], index) => (
-          <motion.div
+          <span
             key={name}
-            initial={{
-              width: 0,
-            }}
-            whileInView={{
+            style={{
               width: `${stats.messagePercentage}%`,
+              background: personColors[index % personColors.length],
             }}
-            viewport={{
-              once: true,
-            }}
-            transition={{
-              duration: 1,
-            }}
-            className={barColors[index % barColors.length]}
           />
         ))}
       </div>
 
-      <ul className="mb-12 mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+      <ul aria-label="Share of messages" className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
         {participants.map(([name, stats], index) => (
           <li key={name} className="flex min-w-0 max-w-full items-center gap-2">
             <span
               aria-hidden="true"
-              className={`h-3 w-3 shrink-0 rounded-sm ${
-                barColors[index % barColors.length]
-              }`}
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ background: personColors[index % personColors.length] }}
             />
-            <span className="min-w-0 font-bold wrap-anywhere">{name}</span>
-            <span className="shrink-0 text-[#8d9ab4]">
+            <span className="min-w-0 font-medium [overflow-wrap:anywhere]">{name}</span>
+            <span className="shrink-0 text-muted tabular-nums">
               {stats.messagePercentage}%
             </span>
           </li>
         ))}
       </ul>
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="mt-8 grid gap-4 md:grid-cols-2">
         {participants.map(([name, stats], index) => {
           const behavior = behaviorByName[name];
 
           return (
-            <motion.div
-              key={name}
-              initial={{
-                opacity: 0,
-                y: 30,
-                rotate: index % 2 === 0 ? -1 : 1,
-              }}
-              whileInView={{
-                opacity: 1,
-                y: 0,
-              }}
-              whileHover={{
-                rotate: 0,
-                scale: 1.015,
-              }}
-              viewport={{
-                once: true,
-              }}
-              className={`min-w-0 border-2 p-5 shadow-xl sm:p-7 ${
-                index === 0
-                  ? "border-yellow-400 bg-[#18233e]"
-                  : "border-[#526486] bg-[#18233e]"
-              }`}
-            >
-              <div className="mb-8 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
-                <h3
-                  className={`min-w-0 max-w-full text-3xl font-black wrap-anywhere sm:text-4xl ${
-                    index === 0 ? "text-yellow-400" : "text-white"
-                  }`}
-                >
-                  {name}
+            <article key={name} className="card min-w-0 p-5 sm:p-6">
+              <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h3 className="flex min-w-0 items-center gap-2 font-display text-xl font-semibold tracking-tight sm:text-2xl">
+                  <span
+                    aria-hidden="true"
+                    className="h-3 w-3 shrink-0 rounded-full"
+                    style={{ background: personColors[index % personColors.length] }}
+                  />
+                  <span className="min-w-0 [overflow-wrap:break-word]">{name}</span>
                 </h3>
-
-                <p className="shrink-0 text-3xl font-black text-[#637496] sm:text-4xl">
+                <p className="shrink-0 font-display text-xl font-semibold text-muted tabular-nums sm:text-2xl">
                   {stats.messagePercentage}%
                 </p>
-              </div>
+              </header>
 
-              <div className="grid grid-cols-2 gap-x-5 gap-y-7 sm:gap-x-8">
-                <RawStat
-                  label="messages"
-                  value={stats.messages.toLocaleString()}
-                />
-
-                <RawStat label="words" value={stats.words.toLocaleString()} />
-
-                <RawStat
-                  label={`median ${gapLabel}`}
-                  value={formatResponseTime(
-                    behavior?.medianResponseTimeSeconds ?? null,
-                  )}
-                />
-
-                {/* API key stays doubleTexts; the label says what it counts. */}
-                <RawStat
-                  label="consecutive messages"
-                  value={(behavior?.doubleTexts ?? 0).toLocaleString()}
-                />
-
-                <RawStat
-                  label="conversation starts"
-                  value={(behavior?.conversationStarts ?? 0).toLocaleString()}
-                />
-
-                <RawStat
+              <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-3">
+                <Stat label="messages" value={stats.messages.toLocaleString()} />
+                <Stat label="words" value={stats.words.toLocaleString()} />
+                <Stat
                   label="words per message"
                   value={stats.averageWordsPerMessage.toString()}
                 />
-              </div>
-            </motion.div>
+                <Stat
+                  label={`median ${gapLabel}`}
+                  value={formatResponseTime(behavior?.medianResponseTimeSeconds ?? null)}
+                />
+                {/* API key stays doubleTexts; the label says what it counts. */}
+                <Stat
+                  label="consecutive messages"
+                  value={(behavior?.doubleTexts ?? 0).toLocaleString()}
+                />
+                <Stat
+                  label="conversation starts"
+                  value={(behavior?.conversationStarts ?? 0).toLocaleString()}
+                />
+              </dl>
+            </article>
           );
         })}
       </div>
 
-      <div className="mt-12 rounded-lg border border-[#344363] bg-[#0f172a]/50 p-6">
-        <p className="mb-4 text-sm font-bold text-yellow-400">
+      <details className="card mt-4 px-5 py-4 sm:px-6">
+        <summary className="cursor-pointer rounded-sm text-sm font-semibold text-accent">
           how we count this, so nobody gets litigated unfairly
-        </p>
+        </summary>
 
-        <dl className="grid gap-x-10 gap-y-4 text-sm leading-6 md:grid-cols-2">
+        <dl className="mt-4 grid gap-x-10 gap-y-4 pb-1 text-sm leading-relaxed md:grid-cols-2">
           {definitions.map(({ term, text }) => (
             <div key={term}>
-              <dt className="font-semibold text-white">{term}</dt>
-              <dd className="text-[#94a3b8]">{text}</dd>
+              <dt className="font-semibold">{term}</dt>
+              <dd className="text-muted">{text}</dd>
             </div>
           ))}
         </dl>
-      </div>
-    </Section>
+      </details>
+    </section>
   );
 }
 
-const barColors = [
-  "bg-yellow-400 text-[#0b132b]",
-  "bg-[#62749c] text-white",
-  "bg-[#9fb0d0] text-[#0b132b]",
-  "bg-[#3d4d70] text-white",
-];
-
-function RawStat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0">
-      <p className="text-sm text-[#71809f]">{label}</p>
-
-      <p className="mt-1 text-2xl font-black wrap-anywhere">{value}</p>
+    // Values sit on the bottom of the row, so a label that wraps to two
+    // lines doesn't push its number out of line with its neighbours.
+    <div className="flex min-w-0 flex-col justify-between gap-0.5">
+      <dt className="text-sm text-muted">{label}</dt>
+      <dd className="text-xl font-semibold tabular-nums [overflow-wrap:anywhere]">
+        {value}
+      </dd>
     </div>
   );
 }

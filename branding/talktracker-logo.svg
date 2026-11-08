@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="TalkTracker">
+  <rect width="120" height="120" fill="#f4efe4"/>
+  <g transform="translate(60 60) scale(0.86) translate(-60 -58)">
+    <path fill="#f2783c" d="M38 20H82A22 22 0 0 1 104 42V74A22 22 0 0 1 82 96H20A4 4 0 0 1 16 92V42A22 22 0 0 1 38 20Z"/>
+    <rect x="34" y="62" width="12" height="18" rx="3" fill="#1d1b16"/>
+    <rect x="54" y="52" width="12" height="28" rx="3" fill="#1d1b16"/>
+    <rect x="74" y="40" width="12" height="40" rx="3" fill="#1d1b16"/>
+  </g>
+</svg>

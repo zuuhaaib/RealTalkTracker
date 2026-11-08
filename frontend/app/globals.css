@@ -1,36 +1,160 @@
 @import "tailwindcss";
 
+/*
+  Moss and cream. Cream paper ground with a lighter card and a darker
+  tint, ink text and ink buttons. Forest green is the accent (links,
+  data, your own messages, focus); tangerine is decoration only, with a
+  deeper burnt orange wherever orange has to be read as text.
+*/
 :root {
-  --background: #0a1020;
-  --foreground: #f5f7fb;
+  --bg: #f4efe4;
+  --panel: #fbf8f1;
+  --panel-2: #ebe3d3;
+  --line: #dcd3c1;
+  --ink: #1d1b16;
+  --muted: #5d584c;
+  --accent: #2f5d3a;
+  --accent-hover: #264d30;
+  --on-accent: #f7f2e8;
+  --button: #1d1b16;
+  --button-hover: #3a352c;
+  --on-button: #f7f2e8;
+  --tangerine: #f2783c;
+  --pop: #b4471a;
+  --danger: #b3261e;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-tangerine: var(--tangerine);
+  --color-pop: var(--pop);
+  --color-danger: var(--danger);
 
-* {
-  box-sizing: border-box;
+  --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-bricolage);
 }
 
 html {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--ink);
+  color-scheme: light;
   scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  min-height: 100svh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+a,
+button,
+label,
+summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 ::selection {
-  background: #facc15;
-  color: #0a1020;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 3rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 999px;
+    background: var(--button);
+    color: var(--on-button);
+    font-weight: 600;
+    transition:
+      background-color 150ms ease,
+      transform 150ms ease;
+  }
+
+  .btn-primary:hover {
+    background: var(--button-hover);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-primary:disabled {
+    cursor: not-allowed;
+    background: var(--panel-2);
+    color: var(--muted);
+    transform: none;
+  }
+
+  .btn-primary:focus-visible {
+    outline-color: var(--ink);
+  }
+
+  .text-link {
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    text-underline-offset: 4px;
+    transition: text-decoration-color 150ms ease;
+  }
+
+  .text-link:hover {
+    text-decoration-color: var(--accent);
+  }
+
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    background: var(--panel);
+  }
+
+  /* A scribbled underline under one word of a headline. */
+  .marker {
+    text-decoration: underline wavy var(--tangerine);
+    text-decoration-thickness: 0.06em;
+    text-underline-offset: 0.18em;
+    text-decoration-skip-ink: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

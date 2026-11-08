@@ -1,192 +1,209 @@
-import { FileQuestion } from "lucide-react";
+"use client";
 
-const stepClass =
-  "space-y-3 pl-5 list-decimal text-sm leading-6 text-[#b6c0d3]";
+import { useRef, useState } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 
-export default function ExportGuide() {
-  return (
-    <section
-      id="export-guide"
-      aria-labelledby="export-guide-title"
-      className="mx-auto max-w-7xl scroll-mt-8 px-6 pb-20 lg:px-10"
-    >
-      <div className="rounded-xl border border-[#344363] bg-[#111b30] p-6 sm:p-8">
-        <div className="flex items-start gap-4">
-          <FileQuestion
-            size={26}
-            className="mt-1 shrink-0 text-yellow-400"
-            aria-hidden="true"
-          />
+const code = "rounded bg-bg px-1.5 py-0.5 text-[0.9em] text-accent";
 
-          <div>
-            <h2
-              id="export-guide-title"
-              className="text-2xl font-black sm:text-3xl"
-            >
-              wait, how do i get the chat?
-            </h2>
+type Platform = {
+  id: string;
+  label: string;
+  intro?: ReactNode;
+  steps: ReactNode[];
+  after?: ReactNode;
+};
 
-            <p className="mt-3 text-sm leading-6 text-[#94a3b8]">
-              fair question. choose your platform below. we need the text file,
-              not 400 screenshots of the conversation.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-8 space-y-4">
-          <details className="group rounded-lg border border-[#344363] bg-[#17213b]">
-            <summary className="cursor-pointer rounded-lg px-5 py-5 font-bold text-yellow-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-yellow-400">
-              whatsapp · iphone
-            </summary>
-
-            <div className="px-5 pb-6">
-              <ol className={stepClass}>
-                <li>Open the conversation in WhatsApp on your phone.</li>
-                <li>
-                  Tap the contact or group name at the top, then find{" "}
-                  <strong className="text-white">Export Chat</strong>.
-                </li>
-                <li>
-                  Choose <strong className="text-white">Without Media</strong>.
-                  we&apos;re reading the lore, not watching the videos.
-                </li>
-                <li>
-                  Save the export to Files, or transfer it to the device where
-                  you&apos;re using TalkTracker.
-                </li>
-                <li>
-                  If you received a ZIP, extract it first. Upload the{" "}
-                  <code className="text-yellow-400">.txt</code> file inside,
-                  often named <code className="text-yellow-400">_chat.txt</code>
-                  .
-                </li>
-              </ol>
-            </div>
-          </details>
-
-          <details className="rounded-lg border border-[#344363] bg-[#17213b]">
-            <summary className="cursor-pointer rounded-lg px-5 py-5 font-bold text-yellow-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-yellow-400">
-              whatsapp · android
-            </summary>
-
-            <div className="px-5 pb-6">
-              <ol className={stepClass}>
-                <li>Open the conversation in WhatsApp on your phone.</li>
-                <li>
-                  Open the three-dot menu, then choose{" "}
-                  <strong className="text-white">More → Export chat</strong>.
-                </li>
-                <li>
-                  Choose <strong className="text-white">Without media</strong>.
-                </li>
-                <li>
-                  Save or share the export to the device where you&apos;re using
-                  TalkTracker.
-                </li>
-                <li>
-                  Upload the <code className="text-yellow-400">.txt</code> file.
-                  If it came inside a ZIP, extract it first.
-                </li>
-              </ol>
-            </div>
-          </details>
-
-          <details className="rounded-lg border border-[#344363] bg-[#17213b]">
-            <summary className="cursor-pointer rounded-lg px-5 py-5 font-bold text-yellow-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-yellow-400">
-              instagram · a few extra steps, unfortunately
-            </summary>
-
-            <div className="space-y-5 px-5 pb-6">
-              <p className="text-sm leading-6 text-[#b6c0d3]">
-                Instagram support currently works with text copied from a
-                downloaded conversation. Raw JSON, HTML, and ZIP files
-                aren&apos;t accepted directly.
-              </p>
-
-              <ol className={stepClass}>
-                <li>
-                  Use Instagram&apos;s information export tool to request your
-                  messages. Follow the{" "}
-                  <a
-                    href="https://help.instagram.com/181231772500920"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold text-yellow-400 underline underline-offset-4"
-                  >
-                    official export instructions
-                  </a>
-                  . Choose HTML if you want to open the downloaded conversation
-                  in a browser.
-                </li>
-                <li>
-                  Once the download is ready, extract it and open the
-                  conversation you want to analyze.
-                </li>
-                <li>
-                  Copy the conversation content into a plain-text editor such as
-                  Notepad. Preserve the sender names, messages, timestamps, and
-                  line breaks.
-                </li>
-                <li>
-                  Check that the copied text follows the layout below. The very
-                  first line must be a sender&apos;s name. Delete any page
-                  title, navigation, or headings above it, or they&apos;ll show
-                  up as a mystery extra participant.
-                </li>
-                <li>
-                  Save it as a UTF-8{" "}
-                  <code className="text-yellow-400">.txt</code> file and upload
-                  it here.
-                </li>
-              </ol>
-
-              <div>
-                <p className="mb-3 text-xs font-semibold text-[#94a3b8]">
-                  expected layout · fictional example
-                </p>
-
-                <pre className="overflow-x-auto rounded-lg border border-[#344363] bg-[#0a1020] p-4 text-xs leading-6 text-[#d1d8e5]">
-                  {`Alex
+const platforms: Platform[] = [
+  {
+    id: "whatsapp-iphone",
+    label: "WhatsApp · iPhone",
+    steps: [
+      "Open the conversation in WhatsApp on your phone.",
+      <>
+        Tap the contact or group name at the top, then find{" "}
+        <strong className="font-semibold text-ink">Export Chat</strong>.
+      </>,
+      <>
+        Choose <strong className="font-semibold text-ink">Without Media</strong>.
+        we&rsquo;re reading the lore, not watching the videos.
+      </>,
+      "Save the export to Files, or transfer it to the device where you’re using TalkTracker.",
+      <>
+        If you received a ZIP, extract it first. Upload the{" "}
+        <code className={code}>.txt</code> file inside, often named{" "}
+        <code className={code}>_chat.txt</code>.
+      </>,
+    ],
+  },
+  {
+    id: "whatsapp-android",
+    label: "WhatsApp · Android",
+    steps: [
+      "Open the conversation in WhatsApp on your phone.",
+      <>
+        Open the three-dot menu, then choose{" "}
+        <strong className="font-semibold text-ink">More → Export chat</strong>.
+      </>,
+      <>
+        Choose <strong className="font-semibold text-ink">Without media</strong>.
+      </>,
+      "Save or share the export to the device where you’re using TalkTracker.",
+      <>
+        Upload the <code className={code}>.txt</code> file. If it came inside a
+        ZIP, extract it first.
+      </>,
+    ],
+  },
+  {
+    id: "instagram",
+    label: "Instagram",
+    intro: (
+      <>
+        A few extra steps, unfortunately. Instagram support currently works
+        with text copied from a downloaded conversation. Raw JSON, HTML, and
+        ZIP files aren&rsquo;t accepted directly.
+      </>
+    ),
+    steps: [
+      <>
+        Use Instagram&rsquo;s information export tool to request your messages.
+        Follow the{" "}
+        <a
+          href="https://help.instagram.com/181231772500920"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-link"
+        >
+          official export instructions
+        </a>
+        . Choose HTML if you want to open the downloaded conversation in a
+        browser.
+      </>,
+      "Once the download is ready, extract it and open the conversation you want to analyze.",
+      "Copy the conversation content into a plain-text editor such as Notepad. Preserve the sender names, messages, timestamps, and line breaks.",
+      "Check that the copied text follows the layout below. The very first line must be a sender’s name. Delete any page title, navigation, or headings above it, or they’ll show up as a mystery extra participant.",
+      <>
+        Save it as a UTF-8 <code className={code}>.txt</code> file and upload
+        it.
+      </>,
+    ],
+    after: (
+      <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <figure>
+          <figcaption className="mb-2 text-sm text-muted">
+            expected layout · fictional example
+          </figcaption>
+          <pre className="overflow-x-auto rounded-xl border border-line bg-bg p-4 text-sm leading-6">
+            {`Alex
 hello
 Dec 15, 2025 3:07 pm
 Sam
 deeply insightful
 Dec 15, 2025 3:06 pm`}
-                </pre>
-              </div>
+          </pre>
+        </figure>
+        <p className="self-end text-sm leading-relaxed text-muted">
+          Export layouts can vary. If yours doesn&rsquo;t copy into this
+          structure, it may not work with the current parser. Renaming a .json
+          or .html file to .txt won&rsquo;t convert it.
+        </p>
+      </div>
+    ),
+  },
+];
 
-              <p className="text-xs leading-6 text-[#94a3b8]">
-                Export layouts can vary. If yours doesn&apos;t copy into this
-                structure, it may not work with the current parser. Renaming a
-                .json or .html file to .txt won&apos;t convert it.
-              </p>
-            </div>
-          </details>
-        </div>
+// Export steps, one platform at a time. Follows the ARIA tabs pattern:
+// arrow keys, Home and End move between platforms.
+export default function ExportGuide() {
+  const [active, setActive] = useState(0);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
 
-        <div className="mt-6 border-t border-[#344363] pt-5 text-xs leading-6 text-[#94a3b8]">
-          <p>
-            Files must be under 10 MiB. Only upload conversations you have
-            permission to share. AI analysis sends participant names,
-            statistics, and selected message excerpts to OpenAI.
+  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    const last = platforms.length - 1;
+    let next: number | null = null;
+
+    if (event.key === "ArrowRight") next = active === last ? 0 : active + 1;
+    if (event.key === "ArrowLeft") next = active === 0 ? last : active - 1;
+    if (event.key === "Home") next = 0;
+    if (event.key === "End") next = last;
+
+    if (next === null) return;
+
+    event.preventDefault();
+    setActive(next);
+    tabs.current[next]?.focus();
+  }
+
+  const platform = platforms[active];
+
+  return (
+    <section id="export-guide" aria-labelledby="export-guide-title">
+      <h2 id="export-guide-title" className="sr-only">
+        Export steps by platform
+      </h2>
+
+      <div
+        role="tablist"
+        aria-label="Platform"
+        className="flex flex-wrap gap-2"
+      >
+        {platforms.map((item, index) => {
+          const selected = index === active;
+
+          return (
+            <button
+              key={item.id}
+              ref={(element) => {
+                tabs.current[index] = element;
+              }}
+              id={`tab-${item.id}`}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={`panel-${item.id}`}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => setActive(index)}
+              onKeyDown={onKeyDown}
+              className={`min-h-11 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                selected
+                  ? "bg-accent text-on-accent"
+                  : "border border-line text-muted hover:text-ink"
+              }`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        id={`panel-${platform.id}`}
+        role="tabpanel"
+        aria-labelledby={`tab-${platform.id}`}
+        tabIndex={0}
+        className="card mt-5 p-6 sm:p-8"
+      >
+        {platform.intro && (
+          <p className="mb-6 max-w-2xl leading-relaxed text-muted">
+            {platform.intro}
           </p>
+        )}
 
-          <p className="mt-2">
-            The parser understands English-language exports. System messages
-            and media placeholders in other languages may sneak into the word
-            counts. Group chats work, but nobody can tell from an export who
-            was replying to whom, so reply stats become “gap before jumping in”.
-          </p>
+        <ol className="space-y-5">
+          {platform.steps.map((step, index) => (
+            <li key={index} className="flex gap-4">
+              <span
+                aria-hidden="true"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-panel-2 text-sm font-semibold text-accent"
+              >
+                {index + 1}
+              </span>
+              <p className="max-w-2xl pt-0.5 leading-relaxed">{step}</p>
+            </li>
+          ))}
+        </ol>
 
-          <a
-            href="https://faq.whatsapp.com/1180414079177245/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-block text-yellow-400 underline underline-offset-4"
-          >
-            WhatsApp&apos;s official export guide
-          </a>
-        </div>
+        {platform.after}
       </div>
     </section>
   );

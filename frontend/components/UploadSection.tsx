@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { LoaderCircle, Sparkles, UploadCloud } from "lucide-react";
+import { FileText, LoaderCircle, UploadCloud } from "lucide-react";
 
 type UploadSectionProps = {
   file: File | null;
@@ -11,6 +10,13 @@ type UploadSectionProps = {
   selectFile: (file: File | null) => void;
   handleAnalyze: () => void;
 };
+
+function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function UploadSection({
   file,
@@ -22,162 +28,115 @@ export default function UploadSection({
   const [dragging, setDragging] = useState(false);
 
   return (
-    <>
-      {/* UPLOAD */}
-      <motion.div
-        initial={{
-          opacity: 0,
-          rotate: 2,
-          y: 25,
+    <div className="card p-4 sm:p-6">
+      <label
+        htmlFor="chat-file"
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setDragging(true);
         }}
-        animate={{
-          opacity: 1,
-          rotate: -1,
-          y: 0,
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragging(true);
         }}
-        transition={{
-          duration: 0.8,
-          delay: 0.15,
+        onDragLeave={(event) => {
+          event.preventDefault();
+          setDragging(false);
         }}
-        className="relative"
+        onDrop={(event) => {
+          event.preventDefault();
+          setDragging(false);
+
+          selectFile(event.dataTransfer.files?.[0] ?? null);
+        }}
+        className={`flex min-h-56 flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-4 has-[input:focus-visible]:outline-accent ${
+          loading ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+        } ${
+          dragging
+            ? "border-accent bg-accent/10"
+            : "border-line bg-bg/40 hover:border-accent/70"
+        }`}
       >
-        <div className="absolute -right-4 -top-5 rotate-6 bg-yellow-400 px-4 py-2 text-sm font-bold text-[#0b132b] shadow-xl">
-          feed me the lore
-        </div>
+        {/* Visually hidden, not display:none, so the native input stays
+            in the tab order and Enter/Space open the file picker. */}
+        <input
+          id="chat-file"
+          type="file"
+          accept=".txt"
+          disabled={loading}
+          aria-describedby={error ? "chat-file-hint upload-error" : "chat-file-hint"}
+          className="sr-only"
+          onChange={(event) => {
+            selectFile(event.target.files?.[0] ?? null);
 
-        <div className="rounded-xl border-2 border-[#344363] bg-[#131b33] p-5 shadow-2xl">
-          <label
-            htmlFor="chat-file"
-            onDragEnter={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={(event) => {
-              event.preventDefault();
-              setDragging(false);
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragging(false);
+            // Allow choosing the same file again after an error.
+            event.target.value = "";
+          }}
+        />
 
-              selectFile(event.dataTransfer.files?.[0] ?? null);
-            }}
-            className={`flex min-h-72 flex-col items-center justify-center rounded-lg border-2 border-dashed px-8 text-center transition has-[input:focus-visible]:outline-4 has-[input:focus-visible]:outline-offset-4 has-[input:focus-visible]:outline-yellow-400 ${
-              loading ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-            } ${
-              dragging
-                ? "border-yellow-400 bg-yellow-400/10"
-                : "border-[#435273] bg-[#0f172a]/60 hover:border-yellow-400"
-            }`}
-          >
-            {/* Visually hidden, not display:none, so the native input stays
-                in the tab order and Enter/Space open the file picker. */}
-            <input
-              id="chat-file"
-              type="file"
-              accept=".txt"
-              disabled={loading}
-              className="sr-only"
-              onChange={(event) => {
-                selectFile(event.target.files?.[0] ?? null);
+        {file ? (
+          <>
+            <FileText size={32} className="mb-3 text-accent" aria-hidden="true" />
+            <span className="max-w-full font-semibold [overflow-wrap:anywhere]">
+              {file.name}
+            </span>
+            <span className="mt-1 text-sm text-muted tabular-nums">
+              {formatSize(file.size)} · this should be interesting
+            </span>
+            <span className="mt-3 text-sm text-accent underline underline-offset-4">
+              choose a different file
+            </span>
+          </>
+        ) : (
+          <>
+            <UploadCloud size={32} className="mb-3 text-accent" aria-hidden="true" />
+            <span className="font-semibold">drop your chat here</span>
+            <span className="mt-1 text-sm text-muted">
+              or click to choose a file
+            </span>
+          </>
+        )}
+      </label>
 
-                // Allow choosing the same file again after an error.
-                event.target.value = "";
-              }}
-            />
+      <p id="chat-file-hint" className="mt-3 text-sm text-muted">
+        A WhatsApp or copied Instagram .txt export, up to 10 MiB.
+      </p>
 
-            <UploadCloud
-              size={38}
-              className="mb-5 text-yellow-400"
+      {error && (
+        <p
+          id="upload-error"
+          role="alert"
+          className="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+        >
+          {error}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={handleAnalyze}
+        disabled={loading || !file}
+        className="btn-primary mt-5 w-full"
+      >
+        {loading ? (
+          <>
+            <LoaderCircle
+              className="motion-safe:animate-spin"
+              size={18}
               aria-hidden="true"
             />
-
-            {file ? (
-              <>
-                <p className="max-w-full text-lg font-bold wrap-anywhere">
-                  {file.name}
-                </p>
-
-                <p className="mt-2 text-sm text-[#7d8aa6]">
-                  this should be interesting
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-lg font-bold">drop your chat here</p>
-
-                <p className="mt-2 text-sm text-[#7d8aa6]">
-                  or click this suspiciously large box (or tab here and press
-                  enter)
-                </p>
-
-                <p className="mt-1 text-xs text-[#56627c]">
-                  whatsapp or copied instagram .txt export
-                </p>
-              </>
-            )}
-          </label>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-[#344363] bg-[#0f172a]/50 p-4">
-              <p className="text-sm font-bold text-yellow-400">whatsapp</p>
-
-              <p className="mt-1 text-xs leading-5 text-[#7d8aa6]">
-                export the chat without media and upload the .txt file
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-[#344363] bg-[#0f172a]/50 p-4">
-              <p className="text-sm font-bold text-yellow-400">instagram</p>
-
-              <p className="mt-1 text-xs leading-5 text-[#7d8aa6]">
-                open your downloaded conversation, copy the chat into a .txt
-                file, then upload it here
-              </p>
-            </div>
-          </div>
-
-          <motion.button
-            whileHover={{
-              scale: 1.03,
-            }}
-            whileTap={{
-              scale: 0.97,
-            }}
-            onClick={handleAnalyze}
-            disabled={loading || !file}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-yellow-400 px-6 py-4 font-bold text-[#0b132b] shadow-lg transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {loading ? (
-              <>
-                <LoaderCircle className="animate-spin" size={19} />
-                overanalyzing...
-              </>
-            ) : (
-              <>
-                analyze my questionable decisions
-                <Sparkles size={17} />
-              </>
-            )}
-          </motion.button>
-          <p className="mt-4 text-center text-xs leading-5 text-[#94a3b8]">
-            heads up: we send participant names, chat stats, and selected
-            message excerpts to OpenAI for the overthinking. make sure everyone
-            involved is okay with that. the AI has opinions, not a psychology
-            degree 😅
-          </p>
-        </div>
-
-        {error && (
-          <p className="mt-4 rounded-lg bg-red-950/50 px-4 py-3 text-sm text-red-300">
-            {error}
-          </p>
+            overanalyzing…
+          </>
+        ) : (
+          "analyze my questionable decisions"
         )}
-      </motion.div>
-    </>
+      </button>
+
+      <p className="mt-4 text-xs leading-relaxed text-muted">
+        Heads up: we send participant names, chat stats, and selected message
+        excerpts to OpenAI for the overthinking. Make sure everyone involved is
+        okay with that. The AI has opinions, not a psychology degree.
+      </p>
+    </div>
   );
 }
