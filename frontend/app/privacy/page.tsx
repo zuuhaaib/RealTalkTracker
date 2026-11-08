@@ -78,8 +78,10 @@ export default function PrivacyPage() {
           replaced with pseudonyms before sending.
         </p>
         <p>
-          A shared daily allowance limits how often AI analysis runs. Its counter is stored with
-          Upstash and contains no chat content or personal information.
+          Daily allowances limit how often AI analysis runs, for each account and for the site as
+          a whole. The counters are stored with Upstash. They contain no chat content, and your
+          account appears only as a scrambled code (a one-way hash of your email address), never
+          the address itself.
         </p>
       </LegalSection>
 
@@ -95,6 +97,10 @@ export default function PrivacyPage() {
         <ul>
           <li>Supabase, for accounts and sign-in</li>
           <li>Google, if you choose to sign in with Google</li>
+          <li>
+            Cloudflare Turnstile, which checks that sign-ups and log-ins come from a person. It
+            reads basic browser and device signals and isn&rsquo;t used for advertising.
+          </li>
           <li>OpenAI, for the AI commentary</li>
           <li>Vercel, which hosts the website</li>
           <li>Render, which hosts the analysis server</li>

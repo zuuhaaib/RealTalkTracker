@@ -7,6 +7,7 @@ import { LoaderCircle, MailCheck } from "lucide-react";
 
 import { getBrowserSupabase } from "../lib/supabase/client";
 import GoogleButton from "./GoogleButton";
+import Turnstile, { getTurnstileSiteKey } from "./Turnstile";
 import { getSupabaseConfig, safeNextPath } from "../lib/supabase/config";
 
 type Mode = "login" | "register";
@@ -30,6 +31,9 @@ const notices: Record<string, string> = {
 function friendlyAuthError(message: string, mode: Mode) {
   const text = message.toLowerCase();
 
+  if (text.includes("captcha")) {
+    return "the quick human check didn’t go through. try it again.";
+  }
   if (text.includes("invalid login credentials")) {
     return "that email and password don’t match. try again.";
   }
@@ -62,6 +66,7 @@ function subscribeToNothing() {
 export default function AuthForm({ mode }: { mode: Mode }) {
   const configured = getSupabaseConfig() !== null;
   const isRegister = mode === "register";
+  const captchaSiteKey = getTurnstileSiteKey();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -71,6 +76,9 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sentTo, setSentTo] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
+  const [captchaUnavailable, setCaptchaUnavailable] = useState(false);
 
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -126,7 +134,19 @@ export default function AuthForm({ mode }: { mode: Mode }) {
     if (errors.password) return passwordRef.current?.focus();
     if (errors.confirm) return confirmRef.current?.focus();
 
+    if (captchaSiteKey && !captchaToken) {
+      setFormError(
+        captchaUnavailable
+          ? "the human check couldn’t load. refresh the page, or turn off anything blocking challenges.cloudflare.com."
+          : "give the quick human check a second to finish, then try again.",
+      );
+      return;
+    }
+
     setSubmitting(true);
+
+    // Each check token works once, so every attempt uses up this one.
+    const captcha = captchaToken ?? undefined;
 
     try {
       if (isRegister) {
@@ -135,6 +155,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}`,
+            captchaToken: captcha,
           },
         });
 
@@ -160,6 +181,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
+        options: { captchaToken: captcha },
       });
 
       if (error) throw error;
@@ -172,6 +194,11 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       );
     } finally {
       setSubmitting(false);
+
+      if (captchaSiteKey) {
+        setCaptchaToken(null);
+        setCaptchaReset((count) => count + 1);
+      }
     }
   }
 
@@ -313,6 +340,18 @@ export default function AuthForm({ mode }: { mode: Mode }) {
               </p>
             )}
           </div>
+        )}
+
+        {configured && captchaSiteKey && (
+          <Turnstile
+            siteKey={captchaSiteKey}
+            resetSignal={captchaReset}
+            onToken={(token) => {
+              setCaptchaToken(token);
+              if (token) setCaptchaUnavailable(false);
+            }}
+            onUnavailable={() => setCaptchaUnavailable(true)}
+          />
         )}
 
         {formError && (

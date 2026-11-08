@@ -69,7 +69,8 @@ FRONTEND_URL=http://localhost:3000
 
 UPSTASH_REDIS_REST_URL=your_upstash_rest_url
 UPSTASH_REDIS_REST_TOKEN=your_upstash_rest_token
-AI_DAILY_LIMIT=20
+AI_DAILY_LIMIT=100
+AI_USER_DAILY_LIMIT=3
 
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
@@ -132,12 +133,14 @@ Restart the relevant server after changing environment variables. For a deployed
 | `backend/.env`        | `FRONTEND_URL`             | Additional frontend origin allowed by CORS; a trailing slash is ignored |
 | `backend/.env`        | `UPSTASH_REDIS_REST_URL`   | REST endpoint for the persistent daily counter                |
 | `backend/.env`        | `UPSTASH_REDIS_REST_TOKEN` | Write-capable REST token                                      |
-| `backend/.env`        | `AI_DAILY_LIMIT`           | Shared AI attempts per Toronto calendar day; defaults to `20` |
+| `backend/.env`        | `AI_DAILY_LIMIT`           | AI attempts per Toronto calendar day for the whole site; defaults to `100` |
+| `backend/.env`        | `AI_USER_DAILY_LIMIT`      | AI attempts per Toronto calendar day for each account; defaults to `3` |
 | `backend/.env`        | `SUPABASE_URL`             | Supabase project URL, used to verify each sign-in token       |
 | `backend/.env`        | `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable (anon) key, sent with that check         |
 | `frontend/.env.local` | `NEXT_PUBLIC_API_URL`      | Backend URL used by the browser                               |
 | `frontend/.env.local` | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL for signing in                           |
 | `frontend/.env.local` | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable (anon) key for signing in    |
+| `frontend/.env.local` | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Optional Cloudflare Turnstile site key; shows the human check on log in and sign up |
 
 `NEXT_PUBLIC_` values are visible in the browser. Your backend’s public URL and Supabase’s publishable key belong there; Supabase designs that key to be public. Your OpenAI key, Redis token and Supabase secret key absolutely do not.
 
@@ -173,6 +176,8 @@ To set up a Supabase project:
 2. Under **Authentication → URL Configuration**, set the Site URL to your frontend (http://localhost:3000 locally) and add `http://localhost:3000/auth/confirm` plus your production `/auth/confirm` URL to the redirect URLs.
 3. For Google sign-in, enable the Google provider under **Authentication → Sign In / Providers**, with a Google Cloud OAuth client ID and secret. In Google Cloud, the OAuth client’s authorized redirect URI is the callback URL Supabase shows on that page (`https://<project>.supabase.co/auth/v1/callback`).
 4. Email confirmation is on by default: new users get a link that lands on `/auth/confirm` and signs them in. Supabase’s built-in email sender is rate-limited, so configure your own SMTP before real traffic, or turn confirmation off under **Authentication → Sign In / Providers → Email**.
+5. Optional CAPTCHA. Create a Cloudflare Turnstile widget for your domains, put its **site key** in `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and deploy the frontend, then turn on **Authentication → Attack Protection → CAPTCHA protection** in Supabase with Turnstile and the **secret key**. Deploy first: once Supabase requires CAPTCHA, email log in and sign up fail on any frontend that doesn't send it. Google sign-in isn't affected.
+6. Check **Authentication → Rate Limits**, which caps how fast accounts can be created and emails sent.
 
 ## feed it the lore
 
@@ -306,21 +311,23 @@ The upload page discloses the OpenAI processing. This project makes no promises 
 
 ## the AI also has a bedtime
 
-The current deployment uses three separate controls:
+The current deployment uses these controls:
 
-| Control                    | Current behavior                                          |
-| -------------------------- | --------------------------------------------------------- |
-| Processing capacity        | At most 2 analyses processing simultaneously              |
-| Shared minute allowance    | 5 recognized chat analyses per minute across all visitors |
-| Persistent daily allowance | 20 AI attempts per Toronto calendar day                   |
+| Control                     | Current behavior                                              |
+| --------------------------- | ------------------------------------------------------------- |
+| Processing capacity         | At most 2 analyses processing simultaneously                  |
+| Account minute allowance    | 5 recognized chat analyses per minute for each account        |
+| Shared minute allowance     | 30 recognized chat analyses per minute across everyone        |
+| Account daily AI allowance  | 3 AI attempts per account per Toronto calendar day (`AI_USER_DAILY_LIMIT`) |
+| Site daily AI allowance     | 100 AI attempts per Toronto calendar day in total (`AI_DAILY_LIMIT`)       |
 
-Invalid uploads and requests rejected because processing slots are full do not consume the shared minute allowance.
+Invalid uploads and requests rejected because processing slots are full do not consume a minute allowance. A request turned away by one minute allowance doesn't use up the other.
 
-A daily slot is reserved immediately before an OpenAI request. Failed requests still consume that slot because a timeout or unusable response may incur charges.
+A daily slot is reserved immediately before an OpenAI request. Failed requests still consume that slot because a timeout or unusable response may incur charges. A slot counts against both the account and the site, and is only taken when both have room.
 
-The daily allowance resets at midnight Toronto time. Its counter is stored in Upstash and survives backend restarts.
+The daily allowances reset at midnight Toronto time. Their counters live in one Upstash hash per day (`talktracker:ai-quota:<date>`) and survive backend restarts. Accounts are stored as a SHA-256 hash of their Supabase user id, not the id or email.
 
-If the daily allowance is exhausted—or the quota store cannot be reached—the app skips AI and still returns statistics.
+If a daily allowance is exhausted—or the quota store cannot be reached—the app skips AI and still returns statistics.
 
 The counter reservation is atomic, so simultaneous requests cannot claim the same remaining slot.
 
@@ -328,13 +335,15 @@ The minute allowance and processing capacity are stored in process memory. They 
 
 Local and deployed backends use the same daily allowance if configured with the same Upstash database.
 
-These are request-volume controls, not a dollar cap. Twenty attempts a day limits how many OpenAI calls can happen, but each call costs a different amount depending on the model, the prompt size, and the output length. Set a spending limit in your OpenAI account if you need a hard money ceiling.
+These are request-volume controls, not a dollar cap. A hundred attempts a day limits how many OpenAI calls can happen, but each call costs a different amount depending on the model, the prompt size, and the output length. Set a spending limit in your OpenAI account if you need a hard money ceiling.
 
-### Why the limits are shared
+### Why limits are per account, not per IP
 
-The minute allowance uses one bucket for everyone on purpose. In testing on Render, a client could choose its own `request.client.host` by sending an `X-Forwarded-For` header, and the last address in the forwarded chain belonged to an internal proxy, not the visitor. `CF-Connecting-IP` matched the real address in a normal request, but there’s no documented, complete trust boundary for it. Until one is verified, picking any forwarded address would let visitors dodge or frame each other.
+Every analysis needs a signed-in account, so limits are keyed to the Supabase user id that the backend verifies. IP addresses aren't used on purpose. In testing on Render, a client could choose its own `request.client.host` by sending an `X-Forwarded-For` header, and the last address in the forwarded chain belonged to an internal proxy, not the visitor. `CF-Connecting-IP` matched the real address in a normal request, but there’s no documented, complete trust boundary for it. Until one is verified, picking any forwarded address would let visitors dodge or frame each other.
 
-The cost of this is fairness: one visitor can use up the minute allowance or the daily AI allowance for everyone.
+Allowances follow the person's inbox, not just the account: the backend lowercases the verified email, drops any `+tag`, and for Gmail drops dots too, so `pat+1@gmail.com`, `p.at@gmail.com` and a deleted-and-recreated account all share one allowance. Accounts without an email fall back to their user id. Only a hash of that value reaches Upstash.
+
+This is only as strong as account creation: someone willing to make accounts on several real inboxes gets several allowances. The site-wide daily allowance still caps the total, and email confirmation, Supabase's sign-up rate limits and the optional CAPTCHA make throwaway accounts slower to create.
 
 ## project structure
 

@@ -6,7 +6,12 @@ import os
 from dotenv import load_dotenv
 from openai import APITimeoutError, OpenAI
 
-from daily_quota import reserve_ai_attempt
+from daily_quota import (
+    ACCOUNT_EXHAUSTED,
+    RESERVED,
+    account_daily_limit,
+    reserve_ai_attempt,
+)
 from analysis.message_content import split_message_content
 
 
@@ -440,6 +445,20 @@ METRIC_DEFINITIONS = {
 }
 
 
+def account_limit_message():
+    limit = account_daily_limit()
+
+    if not limit:
+        return "AI analysis isn't available on your account today."
+
+    plural = "analysis" if limit == 1 else "analyses"
+
+    return (
+        f"you've used your {limit} AI {plural} for today. "
+        "it's back after midnight Toronto time."
+    )
+
+
 def analyze_conversation_with_ai(
     messages,
     statistics,
@@ -447,6 +466,7 @@ def analyze_conversation_with_ai(
     text_stats,
     sentiment,
     topics,
+    account=None,
 ):
     message_sample = build_message_sample(messages)
 
@@ -496,7 +516,12 @@ def analyze_conversation_with_ai(
     client = get_client()
     output_schema = build_output_schema(expected_names)
 
-    if not reserve_ai_attempt():
+    reservation = reserve_ai_attempt(account)
+
+    if reservation == ACCOUNT_EXHAUSTED:
+        return {"error": account_limit_message()}
+
+    if reservation != RESERVED:
         return {
             "error": (
                 "the AI has clocked out for today. "

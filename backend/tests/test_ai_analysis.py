@@ -7,6 +7,7 @@ import httpx
 from openai import APITimeoutError
 
 from analysis import ai_analysis
+from daily_quota import ACCOUNT_EXHAUSTED, RESERVED, SITE_EXHAUSTED
 from analysis.ai_analysis import (
     analyze_conversation_with_ai,
     build_message_sample,
@@ -298,11 +299,12 @@ class AnalyzeConversationTests(unittest.TestCase):
             patch.object(
                 ai_analysis,
                 "reserve_ai_attempt",
-                return_value=True,
+                return_value=RESERVED,
             ),
         ):
             result = analyze_conversation_with_ai(
                 messages, statistics, {}, text_stats, {}, [],
+                account="user:user-1",
             )
 
         return result, client
@@ -359,7 +361,7 @@ class AnalyzeConversationTests(unittest.TestCase):
             {"error": "AI analysis took too long. Please try again later."},
         )
 
-    def test_exhausted_quota_makes_no_request(self):
+    def run_with_reservation(self, reservation):
         client = MagicMock()
 
         with (
@@ -367,8 +369,8 @@ class AnalyzeConversationTests(unittest.TestCase):
             patch.object(
                 ai_analysis,
                 "reserve_ai_attempt",
-                return_value=False,
-            ),
+                return_value=reservation,
+            ) as reserve,
         ):
             result = analyze_conversation_with_ai(
                 chat(4),
@@ -377,10 +379,24 @@ class AnalyzeConversationTests(unittest.TestCase):
                 {},
                 {},
                 [],
+                account="user:user-1",
             )
 
-        self.assertIn("error", result)
+        reserve.assert_called_once_with("user:user-1")
         client.responses.create.assert_not_called()
+
+        return result
+
+    def test_exhausted_quota_makes_no_request(self):
+        result = self.run_with_reservation(SITE_EXHAUSTED)
+
+        self.assertIn("clocked out for today", result["error"])
+
+    def test_exhausted_account_quota_makes_no_request(self):
+        with patch.dict("os.environ", {"AI_USER_DAILY_LIMIT": "3"}):
+            result = self.run_with_reservation(ACCOUNT_EXHAUSTED)
+
+        self.assertIn("used your 3 AI analyses for today", result["error"])
 
     def test_no_readable_text_makes_no_request(self):
         messages = chat(2)

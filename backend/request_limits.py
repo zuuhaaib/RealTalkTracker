@@ -6,6 +6,9 @@ from time import monotonic
 from fastapi import HTTPException
 
 
+SHARED_BUCKET = "shared-analysis-limit"
+
+
 class AnalysisLimiter:
     def __init__(
         self,
@@ -18,9 +21,9 @@ class AnalysisLimiter:
         self.window_seconds = window_seconds
         self.max_concurrent = max_concurrent
 
-        # Buckets are rate-limit keys. The app currently uses a single
-        # shared bucket, because client IPs aren't trustworthy behind
-        # the current proxy chain (see README "shared limits").
+        # Buckets are rate-limit keys: one per signed-in account plus a
+        # shared one for everyone. Client IPs aren't used because they
+        # can be faked behind the current proxy chain (see README).
         self.max_tracked_buckets = max_tracked_buckets
 
         self._attempts = {}
@@ -44,6 +47,15 @@ class AnalysisLimiter:
 
     def consume_attempt(self, bucket):
         """Consume an allowance only after a chat has been recognized."""
+        self.consume_attempts([(bucket, self.requests_per_window)])
+
+    def consume_attempts(self, limits):
+        """
+        Consume one attempt from each (bucket, limit) pair, or from none.
+
+        Every bucket is checked before any is charged, so a request that
+        is turned away by one limit doesn't use up the others.
+        """
         now = monotonic()
         cutoff = now - self.window_seconds
 
@@ -57,39 +69,39 @@ class AnalysisLimiter:
                 if not attempts:
                     del self._attempts[key]
 
-            attempts = self._attempts.get(bucket)
+            new_buckets = sum(
+                1 for bucket, _ in limits if bucket not in self._attempts
+            )
 
-            if attempts is None:
-                if len(self._attempts) >= self.max_tracked_buckets:
-                    raise HTTPException(
-                        status_code=503,
-                        detail="the server is busy. try again shortly",
-                        headers={"Retry-After": "60"},
+            if len(self._attempts) + new_buckets > self.max_tracked_buckets:
+                raise HTTPException(
+                    status_code=503,
+                    detail="the server is busy. try again shortly",
+                    headers={"Retry-After": "60"},
+                )
+
+            for bucket, limit in limits:
+                attempts = self._attempts.get(bucket, ())
+
+                if len(attempts) >= limit:
+                    retry_after = max(
+                        1,
+                        ceil(attempts[0] + self.window_seconds - now),
                     )
 
-                attempts = deque()
-                self._attempts[bucket] = attempts
+                    raise HTTPException(
+                        status_code=429,
+                        detail=(
+                            "the shared analysis allowance is taking a breather. "
+                            "try again in a minute"
+                            if bucket == SHARED_BUCKET
+                            else "easy there. you can analyze another chat in a minute"
+                        ),
+                        headers={"Retry-After": str(retry_after)},
+                    )
 
-            if len(attempts) >= self.requests_per_window:
-                retry_after = max(
-                    1,
-                    ceil(
-                        attempts[0]
-                        + self.window_seconds
-                        - now
-                    ),
-                )
-
-                raise HTTPException(
-                    status_code=429,
-                    detail=(
-                        "the shared analysis allowance is taking a breather. "
-                        "try again in a minute"
-                    ),
-                    headers={"Retry-After": str(retry_after)},
-                )
-
-            attempts.append(now)
+            for bucket, _ in limits:
+                self._attempts.setdefault(bucket, deque()).append(now)
 
     def release(self):
         """Release a slot previously reserved by acquire_slot."""

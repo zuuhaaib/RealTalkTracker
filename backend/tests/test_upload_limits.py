@@ -36,22 +36,23 @@ class UploadLimitTests(unittest.IsolatedAsyncioTestCase):
 
         # Sign-in is covered in test_auth.py; treat every upload here as
         # coming from a signed-in user.
-        auth_patch = patch.object(
-            main,
-            "verify_user",
-            return_value={"id": "user-1"},
-        )
+        # The bearer token doubles as the account's email name.
+        async def fake_verify(authorization):
+            name = authorization.removeprefix("Bearer ")
+            return {"id": f"id-{name}", "email": f"{name}@example.com"}
+
+        auth_patch = patch.object(main, "verify_user", side_effect=fake_verify)
         auth_patch.start()
         self.addCleanup(auth_patch.stop)
 
-    async def upload(self, filename, contents):
+    async def upload(self, filename, contents, user="user-1"):
         file = UploadFile(
             filename=filename,
             file=io.BytesIO(contents),
         )
         return await main.analyze_chat(
             file=file,
-            authorization="Bearer test-token",
+            authorization=f"Bearer {user}",
         )
 
     async def test_invalid_uploads_do_not_use_rate_allowance(self):
@@ -88,6 +89,62 @@ class UploadLimitTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(caught.exception.status_code, 429)
         self.assertEqual(self.ai_mock.call_count, 5)
+
+    async def test_accounts_have_separate_minute_allowances(self):
+        for _ in range(5):
+            await self.upload("chat.txt", CHAT, user="user-1")
+
+        with self.assertRaises(HTTPException) as caught:
+            await self.upload("chat.txt", CHAT, user="user-1")
+
+        self.assertEqual(caught.exception.status_code, 429)
+        self.assertIn("easy there", caught.exception.detail)
+
+        # Someone else is not held up by user-1.
+        result = await self.upload("chat.txt", CHAT, user="user-2")
+        self.assertEqual(result["messageCount"], 2)
+
+    async def test_ai_step_receives_the_account(self):
+        await self.upload("chat.txt", CHAT, user="user-7")
+
+        self.assertEqual(
+            self.ai_mock.call_args.kwargs["account"],
+            "email:user-7@example.com",
+        )
+
+    async def test_email_aliases_share_the_minute_allowance(self):
+        for index in range(5):
+            await self.upload("chat.txt", CHAT, user=f"pat+{index}")
+
+        with self.assertRaises(HTTPException) as caught:
+            await self.upload("chat.txt", CHAT, user="pat+another")
+
+        self.assertEqual(caught.exception.status_code, 429)
+
+    async def test_shared_minute_allowance_caps_everyone(self):
+        limit = main.SHARED_MINUTE_LIMIT
+
+        for index in range(limit):
+            await self.upload("chat.txt", CHAT, user=f"user-{index}")
+
+        with self.assertRaises(HTTPException) as caught:
+            await self.upload("chat.txt", CHAT, user="newcomer")
+
+        self.assertEqual(caught.exception.status_code, 429)
+        self.assertIn("shared analysis allowance", caught.exception.detail)
+        self.assertEqual(self.ai_mock.call_count, limit)
+
+    async def test_rejected_request_does_not_charge_other_buckets(self):
+        for _ in range(5):
+            await self.upload("chat.txt", CHAT, user="user-1")
+
+        for _ in range(3):
+            with self.assertRaises(HTTPException):
+                await self.upload("chat.txt", CHAT, user="user-1")
+
+        # user-1's rejected tries didn't use the shared allowance.
+        for index in range(main.SHARED_MINUTE_LIMIT - 5):
+            await self.upload("chat.txt", CHAT, user=f"other-{index}")
 
     async def test_busy_server_does_not_consume_rate_allowance(self):
         main.analysis_limiter.acquire_slot()

@@ -71,8 +71,8 @@ export default function TermsPage() {
 
       <LegalSection title="availability">
         <p>
-          TalkTracker is provided as is and as available. Usage limits apply, including a shared
-          daily allowance for AI analysis, and features may change or stop at any time. Accounts
+          TalkTracker is provided as is and as available. Usage limits apply, including daily
+          allowances for AI analysis per account and for the whole site, and features may change or stop at any time. Accounts
           that break these terms may be suspended or deleted.
         </p>
       </LegalSection>

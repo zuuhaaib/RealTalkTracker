@@ -6,7 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
 from auth import verify_user
-from request_limits import analysis_limiter
+from daily_quota import quota_identity
+from request_limits import SHARED_BUCKET, analysis_limiter
 from parsers.whatsapp import parse_whatsapp_chat
 from parsers.instagram import parse_instagram_chat
 from analysis.statistics import get_basic_statistics
@@ -22,7 +23,10 @@ logger = logging.getLogger("uvicorn.error")
 app = FastAPI()
 
 MAX_FILE_SIZE = 10 * 1024 * 1024
-SHARED_ANALYSIS_BUCKET = "shared-analysis-limit"
+
+# Recognized chats per minute: for each account, and for everyone together.
+ACCOUNT_MINUTE_LIMIT = 5
+SHARED_MINUTE_LIMIT = 30
 
 # Browsers send the origin without a trailing slash, and CORS
 # compares origins exactly.
@@ -44,7 +48,7 @@ app.add_middleware(
 )
 
 
-def process_chat(contents: bytes):
+def process_chat(contents: bytes, account: str):
     """Run decoding, parsing, statistics, and AI analysis in a worker."""
     try:
         text = contents.decode("utf-8-sig")
@@ -73,9 +77,14 @@ def process_chat(contents: bytes):
             detail="No WhatsApp or Instagram messages could be detected.",
         )
 
-    # Only recognized chats consume the shared rate allowance.
+    # Only recognized chats consume the minute allowances.
     # The concurrency slot was reserved before reading and parsing.
-    analysis_limiter.consume_attempt(SHARED_ANALYSIS_BUCKET)
+    analysis_limiter.consume_attempts(
+        [
+            (account, ACCOUNT_MINUTE_LIMIT),
+            (SHARED_BUCKET, SHARED_MINUTE_LIMIT),
+        ]
+    )
 
     stats = get_basic_statistics(messages)
     behavior = get_behavior_statistics(messages)
@@ -95,6 +104,7 @@ def process_chat(contents: bytes):
             text_stats,
             sentiment,
             topics,
+            account=account,
         )
     except Exception as exc:
         logger.error(
@@ -135,8 +145,8 @@ async def analyze_chat(
 
     try:
         # Check the sign-in first, so rejected requests never take a
-        # processing slot or use the shared rate allowance.
-        await verify_user(authorization)
+        # processing slot or use a rate allowance.
+        user = await verify_user(authorization)
 
         if not file.filename or not file.filename.lower().endswith(".txt"):
             raise HTTPException(
@@ -145,7 +155,7 @@ async def analyze_chat(
             )
 
         # Bound concurrent file reads, parsing, and AI processing.
-        # This does not consume the five-per-minute allowance.
+        # This does not consume a minute allowance.
         analysis_limiter.acquire_slot()
         slot_acquired = True
 
@@ -166,7 +176,11 @@ async def analyze_chat(
                 detail="This file is empty. Please upload a chat export.",
             )
 
-        return await run_in_threadpool(process_chat, contents)
+        # Limits follow the person's inbox, not just the account, so
+        # email aliases and re-created accounts share one allowance.
+        account = quota_identity(user)
+
+        return await run_in_threadpool(process_chat, contents, account)
 
     finally:
         try:
