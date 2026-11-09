@@ -1,4 +1,5 @@
 import type { AIAnalysis } from "../types/analysis";
+import DonateLink from "./DonateLink";
 import Expandable from "./Expandable";
 import { SectionHeading, stagger } from "./ui";
 
@@ -20,6 +21,13 @@ export default function AIAnalysisSection({
         <p data-reveal className="max-w-[56ch] text-xl text-muted">
           {analysis.error} everything above still counts.
         </p>
+        {/* Both daily-limit messages from the backend end with "for today". */}
+        {analysis.error.includes("for today") && (
+          <div data-reveal className="mt-6">
+            <p className="note text-xl">the robot can&rsquo;t afford overtime. api credits aren&rsquo;t free.</p>
+            <DonateLink className="mt-4" />
+          </div>
+        )}
       </section>
     );
   }

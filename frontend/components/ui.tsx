@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { column, container } from "../lib/layout";
 import { stagger } from "../lib/motion";
 import AuthNav from "./AuthNav";
+import { DONATE_URL } from "./DonateLink";
 
 export { column, container, stagger };
 
@@ -103,6 +104,11 @@ export function SiteFooter() {
             <li>
               <a href="mailto:zuuhaaib@gmail.com" className="hover:text-ink">
                 say hi
+              </a>
+            </li>
+            <li>
+              <a href={DONATE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-ink">
+                i&rsquo;m broke
               </a>
             </li>
           </ul>

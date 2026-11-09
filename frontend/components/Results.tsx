@@ -8,6 +8,7 @@ import { byMessages, summarize } from "../lib/edition";
 import AIAnalysisSection from "./AIAnalysisSection";
 import ActivitySection from "./ActivitySection";
 import AwardsSection from "./AwardsSection";
+import DonateLink from "./DonateLink";
 import JumpNav from "./JumpNav";
 import ParticipantStatsSection from "./ParticipantStats";
 import ShareCards from "./ShareCards";
@@ -102,6 +103,19 @@ export default function Results({
         <AIAnalysisSection analysis={data.aiAnalysis} idPrefix={idPrefix} />
         {story && <StorySection story={story} idPrefix={idPrefix} />}
         <ShareCards data={data} idPrefix={idPrefix} />
+
+        <section aria-labelledby={`${idPrefix}donate-title`}>
+          <h2
+            id={`${idPrefix}donate-title`}
+            data-reveal
+            className="say max-w-[18ch] text-[clamp(2.25rem,1.4rem+3.6vw,4rem)]"
+          >
+            i&rsquo;m broke. api credits aren&rsquo;t free. pls.
+          </h2>
+          <div data-reveal className="mt-6">
+            <DonateLink />
+          </div>
+        </section>
       </div>
 
       {ending}
