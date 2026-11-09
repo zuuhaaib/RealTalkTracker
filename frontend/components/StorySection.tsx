@@ -6,7 +6,13 @@ import type { AIAnalysis } from "../types/analysis";
 import { SectionHeading } from "./ui";
 
 // The closing payoff: a tiny work of fiction starring the people in the chat.
-export default function StorySection({ story }: { story: NonNullable<AIAnalysis["story"]> }) {
+export default function StorySection({
+  story,
+  idPrefix = "",
+}: {
+  story: NonNullable<AIAnalysis["story"]>;
+  idPrefix?: string;
+}) {
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
   const timer = useRef<number | undefined>(undefined);
 
@@ -23,8 +29,8 @@ export default function StorySection({ story }: { story: NonNullable<AIAnalysis[
   }
 
   return (
-    <section aria-labelledby="story-title">
-      <SectionHeading id="story-title" title="and now, a story." intro="written by the robot. starring you, unfortunately." />
+    <section aria-labelledby={`${idPrefix}story-title`}>
+      <SectionHeading id={`${idPrefix}story-title`} title="and now, a story." intro="written by the robot. starring you, unfortunately." />
 
       <article data-reveal className="rounded-[2rem] bg-ink p-7 text-bg sm:p-12">
         <h3 className="say max-w-[20ch] text-[clamp(2.25rem,1.5rem+3vw,4rem)] [overflow-wrap:anywhere]">

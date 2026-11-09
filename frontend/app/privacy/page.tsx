@@ -17,7 +17,8 @@ export default function PrivacyPage() {
       <LegalSection title="the short version">
         <ul>
           <li>Your account is your email address and a password, or your Google sign-in.</li>
-          <li>Chats you upload are analyzed and then not kept. TalkTracker doesn&rsquo;t save them.</li>
+          <li>Chats you upload are analyzed and then not kept. TalkTracker never saves the chat file.</li>
+          <li>Results are only kept if you press save, and you can delete them whenever you like.</li>
           <li>
             For the AI commentary, participant names, statistics, and a sample of messages are sent
             to OpenAI.
@@ -46,14 +47,29 @@ export default function PrivacyPage() {
           browser.
         </p>
         <p>
-          TalkTracker&rsquo;s code doesn&rsquo;t save your chat or the results to a database or
-          file. Once the analysis is done, they&rsquo;re gone, apart from whatever temporary
-          handling the hosting providers below do while processing a request. Leave the page and
-          the results go with it.
+          TalkTracker&rsquo;s code doesn&rsquo;t save your chat file to a database or file. Once
+          the analysis is done, it&rsquo;s gone, apart from whatever temporary handling the hosting
+          providers below do while processing a request. Unless you choose to save the results,
+          they go when you leave the page.
         </p>
         <p>
           Only upload conversations you have permission to share. Chats contain other people&rsquo;s
           messages too.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="results you choose to save">
+        <p>
+          If you press save, that chat&rsquo;s results are stored on your account with Supabase, so
+          you can reopen them later. That includes the participant names, statistics, awards, and
+          everything the AI wrote, which can quote messages from the chat. The chat file itself is
+          never saved.
+        </p>
+        <p>
+          Only your account can open your saved results. You can delete any of them from your saved
+          page, which removes them permanently, and they&rsquo;re deleted if your account is. Saved
+          results contain other people&rsquo;s names and words, so only save chats you&rsquo;re
+          comfortable keeping.
         </p>
       </LegalSection>
 
@@ -95,7 +111,7 @@ export default function PrivacyPage() {
       <LegalSection title="who else is involved">
         <p>TalkTracker relies on these services to run:</p>
         <ul>
-          <li>Supabase, for accounts and sign-in</li>
+          <li>Supabase, for accounts, sign-in, and any results you choose to save</li>
           <li>Google, if you choose to sign in with Google</li>
           <li>
             Cloudflare Turnstile, which checks that sign-ups and log-ins come from a person. It
@@ -114,8 +130,8 @@ export default function PrivacyPage() {
 
       <LegalSection title="your choices">
         <p>
-          You can stop using TalkTracker at any time. To delete your account and the email address
-          tied to it, or to ask what&rsquo;s stored about you, email <ContactLink />. Requests are
+          You can stop using TalkTracker at any time, and delete saved results yourself from your
+          saved page. To delete your account and the email address tied to it, or to ask what&rsquo;s stored about you, email <ContactLink />. Requests are
           handled within 30 days.
         </p>
       </LegalSection>

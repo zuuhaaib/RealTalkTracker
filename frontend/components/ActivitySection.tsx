@@ -24,13 +24,13 @@ function formatChartMonth(month: string) {
 }
 
 // When the chat happens: one sentence, then three small charts.
-export default function ActivitySection({ activity }: { activity: ActivityStats }) {
+export default function ActivitySection({ activity, idPrefix = "" }: { activity: ActivityStats; idPrefix?: string }) {
   const lateNight = activity.busiestHour !== null && activity.busiestHour < 5;
 
   return (
-    <section aria-labelledby="activity-title">
+    <section aria-labelledby={`${idPrefix}activity-title`}>
       <SectionHeading
-        id="activity-title"
+        id={`${idPrefix}activity-title`}
         title="when it happens."
         intro={lateNight ? "you should all be asleep, frankly." : "a concerning look at your schedules."}
       />

@@ -56,12 +56,17 @@ export default function AuthNav({ current }: { current: string }) {
     return (
       <>
         {current !== "analyze" && (
-          <li>
+          <li className="hidden sm:block">
             <Link href="/analyze" className={key}>
               upload a chat
             </Link>
           </li>
         )}
+        <li>
+          <Link href="/saved" aria-current={current === "saved" ? "page" : undefined} className={`${quiet} aria-[current=page]:underline`}>
+            saved
+          </Link>
+        </li>
         <li>
           <button
             type="button"

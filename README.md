@@ -305,7 +305,7 @@ The displayed confidence is a model-generated impression, not a calibrated proba
 
 Only upload conversations you have permission to share.
 
-Supabase stores each account’s email address and password hash; it never receives chat content. Upstash receives quota keys and counters, not chat content. OpenAI receives the analysis inputs described above, including real participant names; pseudonymization is not currently implemented.
+Supabase stores each account’s email address and password hash, plus the results of any chat its owner chooses to save (names, statistics and AI text, which can quote messages). It never receives the chat file. Upstash receives quota keys and counters, not chat content. OpenAI receives the analysis inputs described above, including real participant names; pseudonymization is not currently implemented.
 
 Application code does not explicitly save uploaded chats as permanent files. That does not establish what temporary upload handling, hosting infrastructure, or external providers retain.
 

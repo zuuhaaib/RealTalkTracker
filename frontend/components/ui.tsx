@@ -7,7 +7,7 @@ import AuthNav from "./AuthNav";
 
 export { column, container, stagger };
 
-export type Page = "home" | "analyze" | "guide" | "login" | "register" | "legal" | "lost";
+export type Page = "home" | "analyze" | "guide" | "saved" | "login" | "register" | "legal" | "lost";
 
 // The logo: a speech bubble holding three rising bars. Same drawing as
 // branding/talktracker-mark.svg and the favicon.
@@ -40,7 +40,7 @@ export function SiteHeader({ current }: { current: Page }) {
 
       <nav aria-label="Main navigation">
         <ul className="flex items-center gap-4 whitespace-nowrap sm:gap-6">
-          <li className={current === "analyze" || current === "guide" ? "" : "hidden sm:block"}>
+          <li className="hidden sm:block">
             <Link
               href="/guide"
               aria-current={current === "guide" ? "page" : undefined}

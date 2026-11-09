@@ -6,11 +6,17 @@ import { SectionHeading, stagger } from "./ui";
 // verdict and a short version of everything, and lets people open the
 // rest: the reason is cut to a few lines, each person shows their summary,
 // and the longer notes fold away.
-export default function AIAnalysisSection({ analysis }: { analysis: AIAnalysis | { error: string } }) {
+export default function AIAnalysisSection({
+  analysis,
+  idPrefix = "",
+}: {
+  analysis: AIAnalysis | { error: string };
+  idPrefix?: string;
+}) {
   if ("error" in analysis) {
     return (
-      <section aria-labelledby="ai-title">
-        <SectionHeading id="ai-title" title="the ai left you on read." />
+      <section aria-labelledby={`${idPrefix}ai-title`}>
+        <SectionHeading id={`${idPrefix}ai-title`} title="the ai left you on read." />
         <p data-reveal className="max-w-[56ch] text-xl text-muted">
           {analysis.error} everything above still counts.
         </p>
@@ -21,8 +27,8 @@ export default function AIAnalysisSection({ analysis }: { analysis: AIAnalysis |
   const participants = Object.entries(analysis.participants);
 
   return (
-    <section aria-labelledby="ai-title">
-      <SectionHeading id="ai-title" title="the ai’s take." intro="it has opinions, not a psychology degree." />
+    <section aria-labelledby={`${idPrefix}ai-title`}>
+      <SectionHeading id={`${idPrefix}ai-title`} title="the ai’s take." intro="it has opinions, not a psychology degree." />
 
       {/* The verdict: one strip. */}
       <div

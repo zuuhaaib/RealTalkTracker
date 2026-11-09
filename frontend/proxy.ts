@@ -7,7 +7,7 @@ import { getSupabaseConfig, safeNextPath } from "./lib/supabase/config";
 const AUTH_PAGES = new Set(["/login", "/register"]);
 
 // Keeps the Supabase session fresh, sends signed-out visitors from
-// /analyze to the login page, and sends signed-in visitors away from
+// /analyze and /saved to the login page, and sends signed-in visitors away from
 // the login and register pages.
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -71,5 +71,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/analyze", "/login", "/register"],
+  matcher: ["/analyze", "/saved", "/login", "/register"],
 };

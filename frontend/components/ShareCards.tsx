@@ -20,7 +20,7 @@ function toFile(card: Rendered) {
 
 // The results as story-sized images: drawn once, here in the browser, then
 // saved or handed to the phone's share sheet (where Instagram lives).
-export default function ShareCards({ data }: { data: AnalyzeResponse }) {
+export default function ShareCards({ data, idPrefix = "" }: { data: AnalyzeResponse; idPrefix?: string }) {
   const [cards, setCards] = useState<Rendered[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [canShare, setCanShare] = useState(false);
@@ -74,9 +74,9 @@ export default function ShareCards({ data }: { data: AnalyzeResponse }) {
   if (failed) return null;
 
   return (
-    <section aria-labelledby="share-title">
+    <section aria-labelledby={`${idPrefix}share-title`}>
       <SectionHeading
-        id="share-title"
+        id={`${idPrefix}share-title`}
         title="post the evidence."
         intro="sized for your story. these have real names on them, so maybe ask first."
       />

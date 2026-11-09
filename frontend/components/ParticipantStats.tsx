@@ -18,9 +18,11 @@ type Row = {
 export default function ParticipantStatsSection({
   statistics,
   behaviorByName,
+  idPrefix = "",
 }: {
   statistics: AnalyzeResponse["statistics"];
   behaviorByName: AnalyzeResponse["behavior"];
+  idPrefix?: string;
 }) {
   const participants = Object.entries(statistics.participants).sort((a, b) => b[1].messages - a[1].messages);
   const names = participants.map(([name]) => name);
@@ -54,8 +56,8 @@ export default function ParticipantStatsSection({
   };
 
   return (
-    <section aria-labelledby="numbers-title">
-      <SectionHeading id="numbers-title" title="the numbers." intro="no ai involved yet. just counting." />
+    <section aria-labelledby={`${idPrefix}numbers-title`}>
+      <SectionHeading id={`${idPrefix}numbers-title`} title="the numbers." intro="no ai involved yet. just counting." />
 
       {/* Who said how much, as one bar. */}
       <div data-reveal>

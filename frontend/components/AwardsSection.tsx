@@ -2,7 +2,15 @@ import type { Awards } from "../types/analysis";
 import { SectionHeading, stagger } from "./ui";
 
 // The awards, as a grid of tiles: what it's for, who won, one dry line.
-export default function AwardsSection({ awards, isGroup }: { awards: Awards; isGroup: boolean }) {
+export default function AwardsSection({
+  awards,
+  isGroup,
+  idPrefix = "",
+}: {
+  awards: Awards;
+  isGroup: boolean;
+  idPrefix?: string;
+}) {
   const list = [
     { title: "biggest yapper", winner: awards.biggestYapper, caption: "bro had things to say." },
     {
@@ -17,8 +25,8 @@ export default function AwardsSection({ awards, isGroup }: { awards: Awards; isG
   ];
 
   return (
-    <section aria-labelledby="awards-title">
-      <SectionHeading id="awards-title" title="the awards." intro="prestigious. rigorous. ties are shared." />
+    <section aria-labelledby={`${idPrefix}awards-title`}>
+      <SectionHeading id={`${idPrefix}awards-title`} title="the awards." intro="prestigious. rigorous. ties are shared." />
 
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {list.map((award, index) => (

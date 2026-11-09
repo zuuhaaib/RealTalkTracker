@@ -45,7 +45,7 @@ const counts: ReactNode[] = [
 const questions: { q: string; a: ReactNode }[] = [
   {
     q: "do you keep my chat?",
-    a: "no. it’s read, counted and dropped. nothing goes in a database or a file, and the results leave when you leave the page.",
+    a: "the chat, no. it’s read, counted and dropped. the results leave when you leave the page, unless you press save, and then they stay on your account until you delete them.",
   },
   {
     q: "what does the ai see?",
