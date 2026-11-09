@@ -1,84 +1,41 @@
 import type { Awards } from "../types/analysis";
-import { SectionHeading } from "./ui";
+import { SectionHeading, stagger } from "./ui";
 
-export default function AwardsSection({
-  awards,
-  isGroup,
-}: {
-  awards: Awards;
-  isGroup: boolean;
-}) {
+// The awards, as a grid of tiles: what it's for, who won, one dry line.
+export default function AwardsSection({ awards, isGroup }: { awards: Awards; isGroup: boolean }) {
   const list = [
+    { title: "biggest yapper", winner: awards.biggestYapper, caption: "bro had things to say." },
     {
-      title: "biggest yapper",
-      winner: awards.biggestYapper,
-      caption: "bro had things to say",
-      emptyCaption: "nobody sent a message, somehow",
-    },
-    {
-      title: isGroup ? "quickest to jump in" : "fastest responder",
+      title: isGroup ? "quickest to jump in" : "fastest replier",
       winner: awards.fastestResponder,
-      caption: isGroup
-        ? "shortest median gap before speaking. who they were answering is anyone’s guess"
-        : "phone apparently surgically attached",
-      emptyCaption:
-        "no sender changes within six hours, so there was nothing to time",
+      caption: isGroup ? "who they were answering is anyone’s guess." : "phone surgically attached.",
     },
-    {
-      title: "conversation starter",
-      winner: awards.conversationStarter,
-      caption: "keeping the friendship alive one text at a time",
-      emptyCaption: "no conversations to start",
-    },
-    {
-      title: "double text champion",
-      winner: awards.doubleTexter,
-      caption: "most extra messages in a row. one message simply wasn’t enough",
-      emptyCaption: "nobody sent two messages in a row",
-    },
-    {
-      title: "most words",
-      winner: awards.mostWords,
-      caption: "published author apparently",
-      emptyCaption: "no readable words to count",
-    },
-    {
-      title: "certified essay sender",
-      winner: awards.longestMessages,
-      caption: "paragraph enjoyer",
-      emptyCaption: "no readable words to count",
-    },
+    { title: "conversation starter", winner: awards.conversationStarter, caption: "keeping it alive, one “hey” at a time." },
+    { title: "double texter", winner: awards.doubleTexter, caption: "one message was never enough." },
+    { title: "most words", winner: awards.mostWords, caption: "published author, apparently." },
+    { title: "essay sender", winner: awards.longestMessages, caption: "paragraph enjoyer." },
   ];
 
   return (
     <section aria-labelledby="awards-title">
-      <SectionHeading
-        id="awards-title"
-        title="chat awards"
-        intro="prestigious. scientifically rigorous. definitely going on linkedin."
-      />
+      <SectionHeading id="awards-title" title="the awards." intro="prestigious. rigorous. ties are shared." />
 
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {list.map((award) => (
-          <li key={award.title} className="card min-w-0 p-5">
-            <h3 className="text-sm text-muted">{award.title}</h3>
-            <p
-              className={`mt-1 font-display text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] ${
-                award.winner === null ? "text-muted" : "text-accent"
-              }`}
-            >
-              {award.winner ?? "no winner"}
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {list.map((award, index) => (
+          <li
+            key={award.title}
+            data-reveal
+            style={stagger(index % 3)}
+            className="min-w-0 rounded-3xl bg-bg-2 p-6 transition-transform duration-300 hover:-rotate-1"
+          >
+            <h3 className="text-base text-muted">{award.title}</h3>
+            <p className="say mt-2 text-[clamp(1.75rem,1.3rem+1.4vw,2.5rem)] [overflow-wrap:anywhere]">
+              {award.winner ?? <span className="text-muted">nobody</span>}
             </p>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              {award.winner === null ? award.emptyCaption : award.caption}
-            </p>
+            <p className="note mt-2 text-base">{award.winner ? award.caption : "nobody qualified."}</p>
           </li>
         ))}
       </ul>
-
-      <p className="mt-4 text-sm text-muted">
-        awards use the same definitions as the stats above. ties are shared.
-      </p>
     </section>
   );
 }

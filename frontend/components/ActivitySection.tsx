@@ -1,93 +1,50 @@
 "use client";
 
 import type { ReactNode } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
 import type { ActivityStats } from "../types/analysis";
-import { SectionHeading } from "./ui";
+import { formatHour, formatMonth } from "../lib/format";
+import { SectionHeading, stagger } from "./ui";
 
-const accent = "#2f5d3a";
+const ink = "#141413";
+const accent = "#f2783c";
 
-const chartTick = {
-  fill: "#5d584c",
-  fontSize: 12,
-};
+const chartTick = { fill: "#5f5e5a", fontSize: 14 };
 
-const gridStroke = "#e3dbcb";
-
-const tooltipStyle = {
-  backgroundColor: "#fbf8f1",
-  border: "1px solid #dcd3c1",
-  borderRadius: "10px",
-  color: "#1d1b16",
-};
-
-function formatHour(hour: number | null) {
-  if (hour === null) return "n/a";
-
-  const suffix = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-
-  return `${displayHour} ${suffix}`;
-}
-
-function formatMonth(month: string | null) {
-  if (!month) return "n/a";
-
-  const [year, monthNumber] = month.split("-");
-
-  const date = new Date(Number(year), Number(monthNumber) - 1);
-
-  return date.toLocaleString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
-}
+const tooltipStyle = { backgroundColor: ink, border: "none", borderRadius: 12, color: "#f8f7f4" };
+const tooltipLabel = { color: "#f8f7f4", fontWeight: 600 };
+const tooltipItem = { color: "#f8f7f4" };
 
 function formatChartMonth(month: string) {
   const [year, monthNumber] = month.split("-");
-
   const date = new Date(Number(year), Number(monthNumber) - 1);
 
-  return date.toLocaleString("en-US", {
-    month: "short",
-    year: "2-digit",
-  });
+  return date.toLocaleString("en-US", { month: "short", year: "2-digit" }).toLowerCase();
 }
 
-export default function ActivitySection({
-  activity,
-}: {
-  activity: ActivityStats;
-}) {
+// When the chat happens: one sentence, then three small charts.
+export default function ActivitySection({ activity }: { activity: ActivityStats }) {
+  const lateNight = activity.busiestHour !== null && activity.busiestHour < 5;
+
   return (
     <section aria-labelledby="activity-title">
       <SectionHeading
         id="activity-title"
-        title="when do you people sleep?"
-        intro="a concerning examination of when this chat is most active."
+        title="when it happens."
+        intro={lateNight ? "you should all be asleep, frankly." : "a concerning look at your schedules."}
       />
 
-      <dl className="card grid divide-line sm:grid-cols-3 sm:divide-x">
-        <BigFact label="busiest hour" value={formatHour(activity.busiestHour)} />
-        <BigFact label="busiest day" value={activity.busiestDay ?? "n/a"} />
-        <BigFact label="busiest month" value={formatMonth(activity.busiestMonth)} />
-      </dl>
+      <p data-reveal className="say text-[clamp(1.6rem,1.2rem+1.6vw,2.5rem)]">
+        busiest at <span className="text-accent-text">{formatHour(activity.busiestHour)}</span>, on{" "}
+        <span className="text-accent-text">{activity.busiestDay ? `${activity.busiestDay.toLowerCase()}s` : "no day in particular"}</span>
+        , in <span className="text-accent-text">{formatMonth(activity.busiestMonth)}</span>.
+      </p>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <ChartCard title="messages by hour">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={activity.messagesByHour} margin={{ left: -16, right: 4 }}>
-              <CartesianGrid vertical={false} stroke={gridStroke} />
+      <div className="mt-12 grid gap-10 sm:grid-cols-2">
+        <Chart title="by hour" index={0}>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={activity.messagesByHour} margin={{ left: -20, right: 4 }}>
               <XAxis
                 dataKey="hour"
                 ticks={[0, 6, 12, 18]}
@@ -99,39 +56,44 @@ export default function ActivitySection({
               <YAxis allowDecimals={false} tick={chartTick} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={tooltipStyle}
-                cursor={{ fill: "#2f5d3a14" }}
+                labelStyle={tooltipLabel}
+                itemStyle={tooltipItem}
+                cursor={{ fill: "#14141310" }}
                 labelFormatter={(hour) => formatHour(Number(hour))}
               />
-              <Bar dataKey="messages" fill={accent} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="messages" fill={ink} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </Chart>
 
-        <ChartCard title="messages by weekday">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={activity.messagesByWeekday} margin={{ left: -16, right: 4 }}>
-              <CartesianGrid vertical={false} stroke={gridStroke} />
+        <Chart title="by day" index={1}>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={activity.messagesByWeekday} margin={{ left: -20, right: 4 }}>
               <XAxis
                 dataKey="day"
-                tickFormatter={(day) => day.slice(0, 3)}
+                tickFormatter={(day) => day.slice(0, 3).toLowerCase()}
                 tick={chartTick}
                 axisLine={false}
                 tickLine={false}
                 interval={0}
               />
               <YAxis allowDecimals={false} tick={chartTick} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#2f5d3a14" }} />
-              <Bar dataKey="messages" fill={accent} radius={[3, 3, 0, 0]} />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                labelStyle={tooltipLabel}
+                itemStyle={tooltipItem}
+                cursor={{ fill: "#14141310" }}
+              />
+              <Bar dataKey="messages" fill={accent} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </Chart>
       </div>
 
-      <div className="mt-4">
-        <ChartCard title="the rise and fall of the yap">
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={activity.messagesByMonth} margin={{ left: -16, right: 12 }}>
-              <CartesianGrid vertical={false} stroke={gridStroke} />
+      <div className="mt-10">
+        <Chart title="the rise and fall of the yap" index={0}>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={activity.messagesByMonth} margin={{ left: -20, right: 12 }}>
               <XAxis
                 dataKey="month"
                 tickFormatter={formatChartMonth}
@@ -144,39 +106,23 @@ export default function ActivitySection({
               <YAxis allowDecimals={false} tick={chartTick} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={tooltipStyle}
+                labelStyle={tooltipLabel}
+                itemStyle={tooltipItem}
                 labelFormatter={(month) => formatMonth(String(month))}
               />
-              <Line
-                type="linear"
-                dataKey="messages"
-                stroke={accent}
-                strokeWidth={2.5}
-                dot={false}
-                activeDot={{ r: 5 }}
-              />
+              <Line type="linear" dataKey="messages" stroke={ink} strokeWidth={3} dot={false} activeDot={{ r: 5, fill: accent }} />
             </LineChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </Chart>
       </div>
     </section>
   );
 }
 
-function BigFact({ label, value }: { label: string; value: string }) {
+function Chart({ title, index, children }: { title: string; index: number; children: ReactNode }) {
   return (
-    <div className="min-w-0 border-line px-5 py-5 not-first:border-t sm:not-first:border-t-0 sm:px-6">
-      <dt className="text-sm text-muted">{label}</dt>
-      <dd className="mt-1 font-display text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-function ChartCard({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <figure className="card min-w-0 p-5 sm:p-6">
-      <figcaption className="mb-4 font-semibold">{title}</figcaption>
+    <figure data-reveal style={stagger(index)} className="min-w-0">
+      <figcaption className="mb-3 text-lg font-semibold">{title}</figcaption>
       {children}
     </figure>
   );

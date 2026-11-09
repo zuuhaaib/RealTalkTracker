@@ -1,11 +1,20 @@
 import type { AnalyzeResponse } from "../types/analysis";
 import { formatDuration } from "../lib/format";
-import { SectionHeading } from "./ui";
+import { SectionHeading, stagger } from "./ui";
 
-// Identity colours for people in the share bar and on their panels.
-// Each clears 3:1 against the cream ground, the bar for graphics.
-const personColors = ["#2f5d3a", "#e2632a", "#3b5b8c", "#a8841b", "#b8506a", "#2a8279"];
+// Share-bar colours, in message order: the accent, ink, then greys.
+const shareColors = ["var(--accent)", "var(--ink)", "#8f8d87", "#c2bfb7", "#5f5e5a", "#dedbd3"];
 
+type Row = {
+  label: string;
+  value: (name: string) => number | null;
+  show: (value: number | null) => string;
+  // Which end of the row wins: the most, or the least (fastest reply).
+  best: "max" | "min";
+};
+
+// The numbers, head to head: one row per stat, one column per person, and
+// the winner of each row in the accent colour so it can be read at a glance.
 export default function ParticipantStatsSection({
   statistics,
   behaviorByName,
@@ -13,149 +22,164 @@ export default function ParticipantStatsSection({
   statistics: AnalyzeResponse["statistics"];
   behaviorByName: AnalyzeResponse["behavior"];
 }) {
-  const participants = Object.entries(statistics.participants);
-
-  // With 3+ people, the next sender isn't necessarily replying to
-  // the previous one, so gaps are described as gaps, not replies.
+  const participants = Object.entries(statistics.participants).sort((a, b) => b[1].messages - a[1].messages);
+  const names = participants.map(([name]) => name);
+  const stats = Object.fromEntries(participants);
   const isGroup = participants.length > 2;
 
-  const gapLabel = isGroup ? "gap before jumping in" : "reply gap";
+  const count = (value: number | null) => (value === null ? "n/a" : value.toLocaleString());
 
-  const definitions = [
+  const rows: Row[] = [
+    { label: "messages", value: (n) => stats[n].messages, show: count, best: "max" },
+    { label: "words", value: (n) => stats[n].words, show: count, best: "max" },
+    { label: "words per message", value: (n) => stats[n].averageWordsPerMessage, show: count, best: "max" },
     {
-      term: gapLabel,
-      text: isGroup
-        ? "median time between someone else’s message and theirs. in a group we can’t tell who they were actually answering."
-        : "median time between the other person’s message and theirs. gaps of six hours or more don’t count.",
+      label: isGroup ? "jumps in after" : "replies after",
+      value: (n) => behaviorByName[n]?.medianResponseTimeSeconds ?? null,
+      show: formatDuration,
+      best: "min",
     },
-    {
-      term: "consecutive messages",
-      text: "extra messages sent in a row before anyone else talks. a burst of six counts as five. no time limit under six hours.",
-    },
-    {
-      term: "conversation starts",
-      text: "the very first message, plus any message after six or more hours of silence.",
-    },
-    {
-      term: "words per message",
-      text: "readable words divided by all messages, including media-only ones. placeholders like “image omitted” don’t count as words.",
-    },
+    { label: "double texts", value: (n) => behaviorByName[n]?.doubleTexts ?? 0, show: count, best: "max" },
+    { label: "started it", value: (n) => behaviorByName[n]?.conversationStarts ?? 0, show: count, best: "max" },
   ];
 
-  return (
-    <section aria-labelledby="head-to-head-title">
-      <SectionHeading
-        id="head-to-head-title"
-        title="so who talks more?"
-        intro="the cold hard numbers. no AI opinions involved yet."
-      />
+  const winner = (row: Row) => {
+    const values = names.map((name) => row.value(name)).filter((value): value is number => value !== null);
+    if (values.length < 2) return null;
+    const target = row.best === "max" ? Math.max(...values) : Math.min(...values);
+    // Ties and all-zero rows have no winner.
+    if (values.filter((value) => value === target).length > 1) return null;
+    if (row.best === "max" && target === 0) return null;
+    return target;
+  };
 
-      {/* Names live in the legend below, so long names never get clipped
-          inside narrow bar segments. */}
-      <div
-        aria-hidden="true"
-        className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-panel-2"
-      >
-        {participants.map(([name, stats], index) => (
-          <span
-            key={name}
-            style={{
-              width: `${stats.messagePercentage}%`,
-              background: personColors[index % personColors.length],
-            }}
-          />
-        ))}
+  return (
+    <section aria-labelledby="numbers-title">
+      <SectionHeading id="numbers-title" title="the numbers." intro="no ai involved yet. just counting." />
+
+      {/* Who said how much, as one bar. */}
+      <div data-reveal>
+        <div aria-hidden="true" className="flex h-4 gap-1 overflow-hidden rounded-full">
+          {participants.map(([name, person], index) => (
+            <span
+              key={name}
+              className="h-full first:rounded-l-full last:rounded-r-full"
+              style={{ width: `${person.messagePercentage}%`, background: shareColors[index % shareColors.length] }}
+            />
+          ))}
+        </div>
+        <ul aria-label="share of messages" className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-lg">
+          {participants.map(([name, person], index) => (
+            <li key={name} className="flex min-w-0 items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="h-3 w-3 shrink-0 rounded-full"
+                style={{ background: shareColors[index % shareColors.length] }}
+              />
+              <span className="min-w-0 font-semibold [overflow-wrap:anywhere]">{name}</span>
+              <span className="tabular text-muted">{person.messagePercentage}%</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <ul aria-label="Share of messages" className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-        {participants.map(([name, stats], index) => (
-          <li key={name} className="flex min-w-0 max-w-full items-center gap-2">
-            <span
-              aria-hidden="true"
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ background: personColors[index % personColors.length] }}
-            />
-            <span className="min-w-0 font-medium [overflow-wrap:anywhere]">{name}</span>
-            <span className="shrink-0 text-muted tabular-nums">
-              {stats.messagePercentage}%
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-8 grid gap-4 md:grid-cols-2">
-        {participants.map(([name, stats], index) => {
-          const behavior = behaviorByName[name];
+      {/* Phones: one small card per stat, everyone listed, leader highlighted. */}
+      <ul className="mt-10 grid gap-3 sm:hidden">
+        {rows.map((row) => {
+          const best = winner(row);
 
           return (
-            <article key={name} className="card min-w-0 p-5 sm:p-6">
-              <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <h3 className="flex min-w-0 items-center gap-2 font-display text-xl font-semibold tracking-tight sm:text-2xl">
-                  <span
-                    aria-hidden="true"
-                    className="h-3 w-3 shrink-0 rounded-full"
-                    style={{ background: personColors[index % personColors.length] }}
-                  />
-                  <span className="min-w-0 [overflow-wrap:break-word]">{name}</span>
-                </h3>
-                <p className="shrink-0 font-display text-xl font-semibold text-muted tabular-nums sm:text-2xl">
-                  {stats.messagePercentage}%
-                </p>
-              </header>
+            <li key={row.label} data-reveal className="rounded-3xl bg-bg-2 p-5">
+              <h3 className="text-base text-muted">{row.label}</h3>
+              <dl className="mt-2 space-y-1.5">
+                {names.map((name) => {
+                  const value = row.value(name);
+                  const leads = best !== null && value === best;
 
-              <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-3">
-                <Stat label="messages" value={stats.messages.toLocaleString()} />
-                <Stat label="words" value={stats.words.toLocaleString()} />
-                <Stat
-                  label="words per message"
-                  value={stats.averageWordsPerMessage.toString()}
-                />
-                <Stat
-                  label={`median ${gapLabel}`}
-                  value={formatDuration(behavior?.medianResponseTimeSeconds ?? null)}
-                />
-                {/* API key stays doubleTexts; the label says what it counts. */}
-                <Stat
-                  label="consecutive messages"
-                  value={(behavior?.doubleTexts ?? 0).toLocaleString()}
-                />
-                <Stat
-                  label="conversation starts"
-                  value={(behavior?.conversationStarts ?? 0).toLocaleString()}
-                />
+                  return (
+                    <div key={name} className="flex items-baseline justify-between gap-4">
+                      <dt className="min-w-0 text-lg [overflow-wrap:break-word]">{name}</dt>
+                      <dd className={`shrink-0 text-xl font-bold tabular ${leads ? "text-accent-text" : ""}`}>
+                        {row.show(value)}
+                        {leads && <span className="sr-only"> (leads)</span>}
+                      </dd>
+                    </div>
+                  );
+                })}
               </dl>
-            </article>
+            </li>
           );
         })}
+      </ul>
+
+      {/* Wider screens: head to head. Scrolls sideways for big groups. */}
+      <div data-reveal style={stagger(1)} className="relative mt-10 hidden overflow-x-auto sm:block">
+        <table className="w-full border-separate border-spacing-y-1.5 text-left">
+          <caption className="sr-only">each person’s numbers; the highlighted value leads its row</caption>
+          <thead>
+            <tr>
+              <td className="sticky left-0 z-10 w-0 bg-bg" />
+              {names.map((name) => (
+                <th
+                  key={name}
+                  scope="col"
+                  className="max-w-52 min-w-36 px-4 pb-2 text-right align-bottom text-xl leading-tight font-bold [overflow-wrap:break-word]"
+                >
+                  {name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const best = winner(row);
+
+              return (
+                <tr key={row.label} className="bg-bg-2">
+                  <th
+                    scope="row"
+                    className="sticky left-0 z-10 rounded-l-2xl bg-bg-2 py-3 pr-4 pl-5 text-lg font-normal whitespace-nowrap text-muted"
+                  >
+                    {row.label}
+                  </th>
+                  {names.map((name) => {
+                    const value = row.value(name);
+                    const leads = best !== null && value === best;
+
+                    return (
+                      <td
+                        key={name}
+                        className={`px-4 py-3 text-right text-2xl font-bold tabular last:rounded-r-2xl ${
+                          leads ? "text-accent-text" : ""
+                        }`}
+                      >
+                        {row.show(value)}
+                        {leads && <span className="sr-only"> (leads)</span>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
-      <details className="card mt-4 px-5 py-4 sm:px-6">
-        <summary className="cursor-pointer rounded-sm text-sm font-semibold text-accent">
-          how we count this, so nobody gets litigated unfairly
+      <details className="mt-6">
+        <summary className="cursor-pointer list-none text-lg [&::-webkit-details-marker]:hidden">
+          <span className="text-link">how this is counted</span>
         </summary>
-
-        <dl className="mt-4 grid gap-x-10 gap-y-4 pb-1 text-sm leading-relaxed md:grid-cols-2">
-          {definitions.map(({ term, text }) => (
-            <div key={term}>
-              <dt className="font-semibold">{term}</dt>
-              <dd className="text-muted">{text}</dd>
-            </div>
-          ))}
-        </dl>
+        <ul className="mt-3 max-w-[60ch] space-y-2 text-lg text-muted">
+          <li>
+            {isGroup
+              ? "“jumps in after” is the median time between someone else’s message and theirs. nobody can tell who they were answering."
+              : "“replies after” is the median time between the other person’s message and theirs. gaps of six hours or more don’t count."}
+          </li>
+          <li>double texts are extra messages in a row before anyone else talks. a burst of six counts as five.</li>
+          <li>“started it” counts the first message, plus any message after six or more hours of silence.</li>
+          <li>words skip placeholders like “image omitted”.</li>
+        </ul>
       </details>
     </section>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    // Values sit on the bottom of the row, so a label that wraps to two
-    // lines doesn't push its number out of line with its neighbours.
-    <div className="flex min-w-0 flex-col justify-between gap-0.5">
-      <dt className="text-sm text-muted">{label}</dt>
-      <dd className="text-xl font-semibold tabular-nums [overflow-wrap:anywhere]">
-        {value}
-      </dd>
-    </div>
   );
 }

@@ -92,7 +92,7 @@ export default function GoogleButton({
         type="button"
         onClick={continueWithGoogle}
         disabled={busy}
-        className="flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-[#747775] bg-white px-5 py-3 font-medium text-[#1f1f1f] transition-colors hover:bg-[#f7f7f7] disabled:cursor-not-allowed disabled:opacity-70"
+        className="flex min-h-14 w-full items-center justify-center gap-3 border border-[#747775] bg-white px-5 py-3 text-lg font-medium text-[#1f1f1f] transition-[background-color,transform] duration-150 hover:bg-[#f7f7f7] active:translate-y-[3px] disabled:cursor-not-allowed disabled:opacity-70"
       >
         {busy ? (
           <LoaderCircle className="motion-safe:animate-spin" size={20} aria-hidden="true" />
@@ -102,11 +102,7 @@ export default function GoogleButton({
         {busy ? "opening Google…" : "Continue with Google"}
       </button>
 
-      <p className="my-6 flex items-center gap-3 text-sm text-muted">
-        <span aria-hidden="true" className="h-px flex-1 bg-line" />
-        or use your email
-        <span aria-hidden="true" className="h-px flex-1 bg-line" />
-      </p>
+      <p className="my-6 text-center text-lg">or use your email</p>
     </>
   );
 }

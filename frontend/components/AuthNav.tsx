@@ -10,6 +10,10 @@ import { getSupabaseConfig } from "../lib/supabase/config";
 // The account part of the header. It reads the session in the browser, so
 // every page can stay static.
 export default function AuthNav({ current }: { current: string }) {
+  const quiet =
+    "font-medium underline-offset-[6px] decoration-accent decoration-[3px] hover:underline disabled:opacity-60";
+  const key = "send min-h-10 px-4 py-2 text-base";
+
   // undefined while the session is still being read.
   const [user, setUser] = useState<User | null | undefined>(
     getSupabaseConfig() ? undefined : null,
@@ -53,7 +57,7 @@ export default function AuthNav({ current }: { current: string }) {
       <>
         {current !== "analyze" && (
           <li>
-            <Link href="/analyze" className="btn-primary min-h-10 px-4 py-2 text-sm">
+            <Link href="/analyze" className={key}>
               upload a chat
             </Link>
           </li>
@@ -63,7 +67,7 @@ export default function AuthNav({ current }: { current: string }) {
             type="button"
             onClick={signOut}
             disabled={signingOut}
-            className="rounded-sm text-muted transition-colors hover:text-ink disabled:opacity-60"
+            className={quiet}
           >
             {signingOut ? "logging out…" : "log out"}
           </button>
@@ -78,7 +82,7 @@ export default function AuthNav({ current }: { current: string }) {
         <li>
           <Link
             href="/login"
-            className="rounded-sm text-muted transition-colors hover:text-ink"
+            className={quiet}
           >
             log in
           </Link>
@@ -86,7 +90,7 @@ export default function AuthNav({ current }: { current: string }) {
       )}
       {current !== "register" && (
         <li>
-          <Link href="/register" className="btn-primary min-h-10 px-4 py-2 text-sm">
+          <Link href="/register" className={key}>
             sign up
           </Link>
         </li>

@@ -204,17 +204,17 @@ export default function AuthForm({ mode }: { mode: Mode }) {
 
   if (sentTo) {
     return (
-      <div role="status" className="card p-6 sm:p-8">
-        <MailCheck size={28} className="text-accent" aria-hidden="true" />
-        <h2 className="mt-4 font-display text-2xl font-semibold tracking-tight">
-          check your inbox
+      <div role="status" className="motion-safe:animate-[pop-in_400ms_var(--ease-out)]">
+        <MailCheck size={32} className="text-accent-text" aria-hidden="true" />
+        <h2 className="say mt-4 text-[clamp(2rem,1.5rem+1.6vw,3rem)]">
+          check your inbox.
         </h2>
-        <p className="mt-2 leading-relaxed text-muted">
+        <p className="mt-3 text-lg leading-relaxed">
           we sent a confirmation link to{" "}
           <span className="font-medium text-ink [overflow-wrap:anywhere]">{sentTo}</span>.
           open it on this device to finish signing up.
         </p>
-        <p className="mt-6 text-sm text-muted">
+        <p className="mt-6 text-lg">
           already confirmed?{" "}
           <Link href={otherPage} className="text-link">
             log in
@@ -225,19 +225,19 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   }
 
   const inputClass =
-    "mt-1.5 block w-full rounded-xl border bg-bg px-4 py-3 text-ink placeholder:text-muted/70 transition-colors focus:border-accent focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent aria-[invalid=true]:border-danger";
+    "mt-2 block min-h-14 w-full rounded-2xl border-2 bg-white px-4 py-3 text-lg text-ink placeholder:text-muted transition-colors focus:border-ink focus:outline-none focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-accent-text aria-[invalid=true]:border-danger";
 
   return (
-    <div className="card p-6 sm:p-8">
+    <div>
       {!configured && (
-        <p role="alert" className="mb-6 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <p role="alert" className="mb-6 rounded-2xl bg-danger/10 px-4 py-3 text-lg font-medium text-danger">
           sign-in isn’t set up on this site yet, so accounts can’t be created
           or used right now.
         </p>
       )}
 
       {notice && (
-        <p role="status" className="mb-6 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-accent">
+        <p role="status" className="mb-6 rounded-2xl bg-accent/20 px-4 py-3 text-lg">
           {notice}
         </p>
       )}
@@ -246,7 +246,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
 
       <form noValidate onSubmit={onSubmit} className="space-y-5">
         <div>
-          <label htmlFor="email" className="text-sm font-medium">
+          <label htmlFor="email" className="text-lg font-medium">
             email
           </label>
           <input
@@ -263,10 +263,10 @@ export default function AuthForm({ mode }: { mode: Mode }) {
             aria-invalid={Boolean(fieldErrors.email)}
             aria-describedby={fieldErrors.email ? "email-error" : undefined}
             disabled={!configured}
-            className={`${inputClass} ${fieldErrors.email ? "border-danger" : "border-line"}`}
+            className={`${inputClass} ${fieldErrors.email ? "border-danger" : "border-ink/15"}`}
           />
           {fieldErrors.email && (
-            <p id="email-error" className="mt-1.5 text-sm text-danger">
+            <p id="email-error" className="mt-2 text-base font-medium text-danger">
               {fieldErrors.email}
             </p>
           )}
@@ -274,7 +274,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
 
         <div>
           <div className="flex items-baseline justify-between">
-            <label htmlFor="password" className="text-sm font-medium">
+            <label htmlFor="password" className="text-lg font-medium">
               password
             </label>
             <button
@@ -282,7 +282,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
               onClick={() => setShowPassword((shown) => !shown)}
               aria-pressed={showPassword}
               aria-controls={isRegister ? "password confirm" : "password"}
-              className="rounded-sm text-sm text-muted transition-colors hover:text-ink"
+              className="font-medium underline decoration-2 underline-offset-4"
             >
               {showPassword ? "hide" : "show"}
             </button>
@@ -302,15 +302,15 @@ export default function AuthForm({ mode }: { mode: Mode }) {
                 .join(" ") || undefined
             }
             disabled={!configured}
-            className={`${inputClass} ${fieldErrors.password ? "border-danger" : "border-line"}`}
+            className={`${inputClass} ${fieldErrors.password ? "border-danger" : "border-ink/15"}`}
           />
           {isRegister && !fieldErrors.password && (
-            <p id="password-hint" className="mt-1.5 text-sm text-muted">
+            <p id="password-hint" className="mt-2 text-base">
               at least {MIN_PASSWORD} characters.
             </p>
           )}
           {fieldErrors.password && (
-            <p id="password-error" className="mt-1.5 text-sm text-danger">
+            <p id="password-error" className="mt-2 text-base font-medium text-danger">
               {fieldErrors.password}
             </p>
           )}
@@ -318,7 +318,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
 
         {isRegister && (
           <div>
-            <label htmlFor="confirm" className="text-sm font-medium">
+            <label htmlFor="confirm" className="text-lg font-medium">
               confirm password
             </label>
             <input
@@ -332,10 +332,10 @@ export default function AuthForm({ mode }: { mode: Mode }) {
               aria-invalid={Boolean(fieldErrors.confirm)}
               aria-describedby={fieldErrors.confirm ? "confirm-error" : undefined}
               disabled={!configured}
-              className={`${inputClass} ${fieldErrors.confirm ? "border-danger" : "border-line"}`}
+              className={`${inputClass} ${fieldErrors.confirm ? "border-danger" : "border-ink/15"}`}
             />
             {fieldErrors.confirm && (
-              <p id="confirm-error" className="mt-1.5 text-sm text-danger">
+              <p id="confirm-error" className="mt-2 text-base font-medium text-danger">
                 {fieldErrors.confirm}
               </p>
             )}
@@ -355,7 +355,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         )}
 
         {formError && (
-          <p role="alert" className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+          <p role="alert" className="rounded-2xl bg-danger/10 px-4 py-3 text-lg font-medium text-danger motion-safe:animate-[pop-in_300ms_var(--ease-out)]">
             {formError}
           </p>
         )}
@@ -363,7 +363,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         <button
           type="submit"
           disabled={submitting || !configured}
-          className="btn-primary w-full"
+          className="send min-h-14 w-full text-lg"
         >
           {submitting && (
             <LoaderCircle className="motion-safe:animate-spin" size={18} aria-hidden="true" />
@@ -379,7 +379,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       </form>
 
       {isRegister && (
-        <p className="mt-4 text-center text-xs leading-relaxed text-muted">
+        <p className="mt-5 text-center text-base leading-relaxed">
           by creating an account, you agree to the{" "}
           <Link href="/terms" className="text-link">
             terms
@@ -392,7 +392,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         </p>
       )}
 
-      <p className="mt-6 text-center text-sm text-muted">
+      <p className="mt-6 text-center text-lg">
         {isRegister ? "already have an account?" : "new here?"}{" "}
         <Link href={otherPage} className="text-link">
           {isRegister ? "log in" : "create an account"}

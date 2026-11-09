@@ -295,6 +295,8 @@ The request uses Structured Outputs: a strict JSON schema built from the detecte
 
 The model returns participants as a list. The backend converts it to the name-keyed object the frontend uses, so the API response shape hasn’t changed. Successful results also include a `sample` object describing what the AI saw.
 
+The same request also writes a 120 to 150 word fictional `story` starring the participants, so it costs no extra daily allowance. The characters come from the personality profiles the model wrote; the plot is invented and the model is told not to reuse quotes, jokes, topics or events from the chat. The model writes a short private outline first (never returned) so the plot has a clear goal, problem and ending. The story is optional in the response: if it is missing, empty, or over 260 words, the backend leaves it out and keeps the rest of the analysis.
+
 Refusals, cut-off responses, timeouts, API errors, and responses that fail validation all show the fallback message, and your statistics still appear. Every one of those still uses up a daily attempt.
 
 The displayed confidence is a model-generated impression, not a calibrated probability.

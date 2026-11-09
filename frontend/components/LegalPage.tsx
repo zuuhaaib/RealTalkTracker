@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { SiteFooter, SiteHeader, SkipLink, container } from "./ui";
+import { SiteFooter, SiteHeader, SkipLink, column, stagger } from "./ui";
 
 // Shared details for the privacy policy and terms of service.
 export const CONTACT_EMAIL = "zuuhaaib@gmail.com";
@@ -20,21 +20,23 @@ export function LegalPage({
       <SkipLink />
       <SiteHeader current="legal" />
 
-      <main id="main-content" className={`${container} pt-10 sm:pt-16`}>
-        <article className="mx-auto max-w-2xl">
+      <main id="main-content" className={`${column} pt-12 sm:pt-20`}>
+        <article>
           <header>
-            <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
-              {title}
-            </h1>
-            <p className="mt-3 text-sm text-muted">Last updated {LAST_UPDATED}</p>
-            <p className="mt-6 text-lg leading-relaxed text-muted">{intro}</p>
+            <h1 className="say text-[clamp(3rem,1.6rem+5vw,5.5rem)]">{title}</h1>
+            <p data-reveal style={stagger(1)} className="mt-5 text-xl text-muted">
+              {intro}
+            </p>
+            <p data-reveal style={stagger(2)} className="mt-3 text-base text-muted">
+              last updated {LAST_UPDATED}
+            </p>
           </header>
 
-          <div className="mt-10 space-y-10">{children}</div>
+          <div className="mt-14 space-y-12">{children}</div>
         </article>
       </main>
 
-      <SiteFooter line="some friendships deserve a footnote." />
+      <SiteFooter />
     </>
   );
 }
@@ -47,9 +49,9 @@ export function LegalSection({
   children: ReactNode;
 }) {
   return (
-    <section>
-      <h2 className="font-display text-2xl font-semibold tracking-tight">{title}</h2>
-      <div className="mt-3 space-y-3 leading-relaxed [&_li]:pl-1 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5 [&_ul]:marker:text-accent">
+    <section data-reveal>
+      <h2 className="say text-[clamp(1.6rem,1.3rem+1vw,2.1rem)]">{title}</h2>
+      <div className="mt-2 max-w-[62ch] space-y-3 text-lg leading-relaxed [&_li]:pl-1 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5 [&_ul]:marker:text-accent-text">
         {children}
       </div>
     </section>

@@ -5,16 +5,15 @@ import { useEffect, useRef, useState } from "react";
 
 import type { AnalyzeResponse } from "../../types/analysis";
 import { getBrowserSupabase } from "../../lib/supabase/client";
-import {
-  SiteFooter,
-  SiteHeader,
-  SkipLink,
-  container,
-} from "../../components/ui";
+import { SiteFooter, SiteHeader, SkipLink, column, container, stagger } from "../../components/ui";
+import JumpNav from "../../components/JumpNav";
+import { byMessages, summarize } from "../../lib/edition";
 import AwardsSection from "../../components/AwardsSection";
 import ActivitySection from "../../components/ActivitySection";
 import AIAnalysisSection from "../../components/AIAnalysisSection";
 import ParticipantStatsSection from "../../components/ParticipantStats";
+import ShareCards from "../../components/ShareCards";
+import StorySection from "../../components/StorySection";
 import UploadSection from "../../components/UploadSection";
 
 const API_URL = (
@@ -38,6 +37,7 @@ export default function AnalyzePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const resultsHeading = useRef<HTMLHeadingElement>(null);
+  const uploadHeading = useRef<HTMLHeadingElement>(null);
 
   // Move focus to the results when they arrive, so keyboard and screen
   // reader users land on them instead of a disabled button.
@@ -139,6 +139,16 @@ export default function AnalyzePage() {
     }
   }
 
+  // Back to an empty message box, for the next chat.
+  function startOver() {
+    setData(null);
+    setFile(null);
+    setError("");
+    window.scrollTo({ top: 0 });
+    // Wait for the box to render before moving focus to it.
+    window.requestAnimationFrame(() => uploadHeading.current?.focus());
+  }
+
   function selectFile(selectedFile: File | null) {
     if (!selectedFile || loading) return;
 
@@ -167,129 +177,171 @@ export default function AnalyzePage() {
   }
 
   const participants = data ? Object.entries(data.statistics.participants) : [];
-
-  const participantNames = participants.map(([name]) => name).join(" vs ");
+  const isGroup = participants.length > 2;
+  const top = data ? byMessages(data)[0] : null;
+  const facts = data ? summarize(data) : [];
+  const story = data && !("error" in data.aiAnalysis) ? data.aiAnalysis.story : undefined;
 
   return (
     <>
       <SkipLink />
       <SiteHeader current="analyze" />
 
-      <main id="main-content" className={`${container} pt-8 sm:pt-12`}>
-        {/* UPLOAD */}
-        <section
-          aria-labelledby="upload-title"
-          className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16"
-        >
-          <div>
+      <main id="main-content">
+        {!data && (
+          /* THE MESSAGE BOX */
+          <section aria-labelledby="upload-title" className={`${column} pt-12 pb-20 sm:pt-20`}>
             <h1
               id="upload-title"
-              className="font-display text-4xl font-semibold leading-tight tracking-tight sm:text-5xl"
+              ref={uploadHeading}
+              tabIndex={-1}
+              className="say text-[clamp(3rem,1.6rem+5vw,5.5rem)] focus:outline-none"
             >
-              upload the chat. we’ll overthink it.
+              send the chat.
             </h1>
-
-            <p className="mt-4 max-w-md text-lg leading-relaxed text-muted">
-              bring your WhatsApp or Instagram text export. we’ll handle the
-              statistics, awards, and potentially unnecessary observations.
+            <p className="mt-5 max-w-[44ch] text-xl text-muted">
+              a WhatsApp or Instagram text export. we&rsquo;ll count it, and a machine will have
+              opinions.{" "}
+              <Link href="/guide" className="text-link">
+                how do i get the file?
+              </Link>
             </p>
 
-            <Link href="/guide" className="text-link mt-6 inline-block">
-              wait, how do i get my chat file?
-            </Link>
-          </div>
+            <div className="mt-10">
+              <UploadSection
+                file={file}
+                loading={loading}
+                error={error}
+                selectFile={selectFile}
+                handleAnalyze={handleAnalyze}
+              />
+            </div>
+          </section>
+        )}
 
-          <UploadSection
-            file={file}
-            loading={loading}
-            error={error}
-            selectFile={selectFile}
-            handleAnalyze={handleAnalyze}
-          />
-        </section>
-
-        {/* LOADING */}
+        {/* TYPING */}
         <div aria-live="polite" aria-busy={loading}>
-          {loading && (
-            <section aria-label="Analysis in progress" className="card mt-12 p-6 sm:p-8">
-              <p className="font-display text-2xl font-semibold tracking-tight">
-                reading years of lore…
-              </p>
-
-              <ul className="mt-4 space-y-2 text-muted">
-                <LoadingLine>counting every unnecessary double text</LoadingLine>
-                <LoadingLine>
-                  figuring out who refuses to start conversations
-                </LoadingLine>
-                <LoadingLine>
-                  checking what time you people should have been asleep
-                </LoadingLine>
-                <LoadingLine>asking a machine who is funnier</LoadingLine>
-                <LoadingLine>
-                  preparing potentially friendship-ending statistics
-                </LoadingLine>
-              </ul>
-            </section>
-          )}
+          {loading && <Typing />}
         </div>
 
-        {/* RESULTS */}
-        {data && (
-          <div className="mt-20 space-y-20 sm:mt-24 sm:space-y-24">
-            <section
-              aria-labelledby="results-title"
-              className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between"
-            >
-              <div className="min-w-0">
-                <p className="text-sm text-muted">the damage</p>
-                <h2
-                  id="results-title"
-                  ref={resultsHeading}
-                  tabIndex={-1}
-                  className="mt-1 font-display text-4xl font-semibold tracking-tight [overflow-wrap:anywhere] focus:outline-none sm:text-5xl"
-                >
-                  {participantNames}
-                </h2>
-              </div>
+        {/* THE REPLY */}
+        {data && top && (
+          <div className={`${container} pt-6`}>
+            {/* What was analysed, and a way to do another. */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-bg-2 p-3 pl-5 sm:rounded-full sm:py-2 sm:pr-2">
+              <p className="min-w-0 text-base text-muted tabular [overflow-wrap:anywhere]">
+                <span className="font-semibold text-ink">{file?.name ?? "your chat"}</span> ·{" "}
+                {data.messageCount.toLocaleString()} {data.platform === "whatsapp" ? "WhatsApp" : "Instagram"} messages
+              </p>
+              <button type="button" onClick={startOver} className="send min-h-10 px-4 py-2 text-base">
+                upload another
+              </button>
+            </div>
 
-              <div className="shrink-0 sm:text-right">
-                <p className="font-display text-5xl font-semibold tracking-tight text-accent tabular-nums">
-                  {data.messageCount.toLocaleString()}
-                </p>
-                <p className="mt-1 max-w-xs text-sm text-muted">
-                  messages analyzed for reasons nobody can adequately explain.
-                  detected: {data.platform}
-                </p>
-              </div>
+            {/* THE VERDICT AND THE TL;DR */}
+            <section aria-labelledby="results-title" className="pt-14 pb-10 sm:pt-20">
+              <h1
+                id="results-title"
+                ref={resultsHeading}
+                tabIndex={-1}
+                className="say max-w-[16ch] text-[clamp(2.75rem,1.5rem+5vw,5.5rem)] [overflow-wrap:anywhere] focus:outline-none motion-safe:animate-[pop-in_500ms_var(--ease-out)]"
+              >
+                {top[0]} is carrying this {isGroup ? "group chat" : "chat"}.
+              </h1>
+              <p className="note mt-4 text-xl">screenshot this, send it, walk away.</p>
+
+              <h2 id="tldr" className="sr-only scroll-mt-24">
+                tl;dr
+              </h2>
+              <ul className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {facts.map((fact, index) => (
+                  <li
+                    key={fact.id}
+                    style={{ animationDelay: `${200 + index * 90}ms` }}
+                    className={`min-w-0 rounded-3xl p-4 motion-safe:animate-[pop-in_500ms_var(--ease-out)_both] sm:p-6 ${
+                      index === 0 ? "bg-accent" : "bg-bg-2"
+                    }`}
+                  >
+                    <p className={`text-base ${index === 0 ? "text-ink" : "text-muted"}`}>{fact.label}</p>
+                    <p className="say mt-1 text-[clamp(1.5rem,1.2rem+1.4vw,2.5rem)] [overflow-wrap:anywhere] sm:mt-2">
+                      {fact.name}
+                    </p>
+                    <p className="mt-1 text-base">{fact.detail}</p>
+                  </li>
+                ))}
+              </ul>
             </section>
 
-            <ParticipantStatsSection
-              statistics={data.statistics}
-              behaviorByName={data.behavior}
+            <JumpNav
+              jumps={[
+                { id: "tldr", label: "tl;dr" },
+                { id: "numbers-title", label: "the numbers" },
+                { id: "awards-title", label: "awards" },
+                { id: "activity-title", label: "when" },
+                { id: "ai-title", label: "the ai’s take" },
+                ...(story ? [{ id: "story-title", label: "the story" }] : []),
+                { id: "share-title", label: "share" },
+              ]}
             />
 
-            <AwardsSection
-              awards={data.awards}
-              isGroup={participants.length > 2}
-            />
+            <div className="space-y-24 pt-12 sm:space-y-32 sm:pt-16">
+              <ParticipantStatsSection statistics={data.statistics} behaviorByName={data.behavior} />
+              <AwardsSection awards={data.awards} isGroup={isGroup} />
+              <ActivitySection activity={data.activity} />
+              <AIAnalysisSection analysis={data.aiAnalysis} />
+              {story && <StorySection story={story} />}
+              <ShareCards data={data} />
+            </div>
 
-            <ActivitySection activity={data.activity} />
-
-            <AIAnalysisSection analysis={data.aiAnalysis} />
+            <section aria-labelledby="again-title" className="pt-24 sm:pt-32">
+              <h2 id="again-title" data-reveal className="say text-[clamp(2.25rem,1.4rem+3.6vw,4rem)]">
+                another one?
+              </h2>
+              <div data-reveal style={stagger(1)} className="mt-6">
+                <button type="button" onClick={startOver} className="send send-accent text-lg">
+                  upload another chat
+                </button>
+              </div>
+            </section>
           </div>
         )}
       </main>
 
-      <SiteFooter line="statistics, inside jokes, and questionable judgment." />
+      <SiteFooter />
     </>
   );
 }
 
-function LoadingLine({ children }: { children: string }) {
+const typingLines = [
+  "counting every double text",
+  "timing the silences",
+  "checking who should’ve been asleep",
+  "asking a robot who’s funnier",
+  "the robot is thinking",
+];
+
+// While the server works: a typing bubble, and what it's up to.
+function Typing() {
   return (
-    <li className="flex items-center gap-3">
-      <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-      <span>{children}</span>
-    </li>
+    <section aria-label="working on it" className={`${column} pb-16`}>
+      <p className="inline-block rounded-full bg-bg-2 px-5 py-3 text-3xl leading-none text-muted">
+        <span aria-hidden="true" className="dots">
+          <span>.</span>
+          <span>.</span>
+          <span>.</span>
+        </span>
+      </p>
+      <ul className="mt-5 space-y-1 text-xl text-muted">
+        {typingLines.map((line, index) => (
+          <li
+            key={line}
+            className="motion-safe:animate-[pop-in_400ms_var(--ease-out)_both]"
+            style={{ animationDelay: `${index * 1.5}s` }}
+          >
+            {line}…
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

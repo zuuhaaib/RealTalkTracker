@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, LoaderCircle, UploadCloud } from "lucide-react";
 
 type UploadSectionProps = {
   file: File | null;
@@ -18,17 +17,12 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function UploadSection({
-  file,
-  loading,
-  error,
-  selectFile,
-  handleAnalyze,
-}: UploadSectionProps) {
+// A message box: attach the chat, press send.
+export default function UploadSection({ file, loading, error, selectFile, handleAnalyze }: UploadSectionProps) {
   const [dragging, setDragging] = useState(false);
 
   return (
-    <div className="card p-4 sm:p-6">
+    <div>
       <label
         htmlFor="chat-file"
         onDragEnter={(event) => {
@@ -49,13 +43,9 @@ export default function UploadSection({
 
           selectFile(event.dataTransfer.files?.[0] ?? null);
         }}
-        className={`flex min-h-56 flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-4 has-[input:focus-visible]:outline-accent ${
+        className={`group flex min-h-56 flex-col items-center justify-center rounded-[2rem] border-[3px] border-dashed px-6 py-10 text-center transition-[background-color,border-color,transform] duration-200 has-[input:focus-visible]:outline-3 has-[input:focus-visible]:outline-offset-4 has-[input:focus-visible]:outline-accent-text ${
           loading ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-        } ${
-          dragging
-            ? "border-accent bg-accent/10"
-            : "border-line bg-bg/40 hover:border-accent/70"
-        }`}
+        } ${dragging ? "scale-[1.02] border-accent bg-accent/15" : "border-ink/25 hover:border-ink/60"}`}
       >
         {/* Visually hidden, not display:none, so the native input stays
             in the tab order and Enter/Space open the file picker. */}
@@ -76,67 +66,50 @@ export default function UploadSection({
 
         {file ? (
           <>
-            <FileText size={32} className="mb-3 text-accent" aria-hidden="true" />
-            <span className="max-w-full font-semibold [overflow-wrap:anywhere]">
+            <span className="say max-w-full text-[clamp(1.75rem,1.3rem+1.6vw,2.5rem)] [overflow-wrap:anywhere]">
               {file.name}
             </span>
-            <span className="mt-1 text-sm text-muted tabular-nums">
-              {formatSize(file.size)} · this should be interesting
-            </span>
-            <span className="mt-3 text-sm text-accent underline underline-offset-4">
-              choose a different file
-            </span>
+            <span className="mt-2 text-lg text-muted tabular">{formatSize(file.size)} · this should be interesting</span>
+            <span className="text-link mt-4 text-lg">pick a different file</span>
           </>
         ) : (
           <>
-            <UploadCloud size={32} className="mb-3 text-accent" aria-hidden="true" />
-            <span className="font-semibold">drop your chat here</span>
-            <span className="mt-1 text-sm text-muted">
-              or click to choose a file
+            <span className="say text-[clamp(1.75rem,1.3rem+1.8vw,2.75rem)] transition-transform duration-300 group-hover:-rotate-1">
+              {dragging ? "let go. we’ve got it." : "drop the chat here"}
             </span>
+            <span className="mt-2 text-lg text-muted">or click to pick the .txt file</span>
           </>
         )}
       </label>
 
-      <p id="chat-file-hint" className="mt-3 text-sm text-muted">
-        A WhatsApp or copied Instagram .txt export, up to 10 MiB.
+      <p id="chat-file-hint" className="mt-3 text-base text-muted">
+        a WhatsApp or copied Instagram .txt export, up to 10 MiB.
       </p>
 
       {error && (
         <p
           id="upload-error"
           role="alert"
-          className="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+          className="mt-4 rounded-2xl bg-danger/10 px-4 py-3 text-lg font-medium text-danger motion-safe:animate-[pop-in_300ms_var(--ease-out)]"
         >
           {error}
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={handleAnalyze}
-        disabled={loading || !file}
-        className="btn-primary mt-5 w-full"
-      >
-        {loading ? (
-          <>
-            <LoaderCircle
-              className="motion-safe:animate-spin"
-              size={18}
-              aria-hidden="true"
-            />
-            overanalyzing…
-          </>
-        ) : (
-          "analyze my questionable decisions"
-        )}
-      </button>
-
-      <p className="mt-4 text-xs leading-relaxed text-muted">
-        Heads up: we send participant names, chat stats, and selected message
-        excerpts to OpenAI for the overthinking. Make sure everyone involved is
-        okay with that. The AI has opinions, not a psychology degree.
-      </p>
+      <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+        <button
+          type="button"
+          onClick={handleAnalyze}
+          disabled={loading || !file}
+          className="send send-accent min-w-40 text-lg"
+        >
+          {loading ? "sending…" : "send"}
+        </button>
+        <p className="max-w-[46ch] text-base text-muted">
+          names, stats and some messages go to OpenAI for the ai&rsquo;s take, so make sure the
+          chat is fine with that.
+        </p>
+      </div>
     </div>
   );
 }

@@ -22,6 +22,11 @@ MAX_SAMPLE_MESSAGES = 200
 TARGET_SAMPLE_WINDOWS = 10
 MAX_MESSAGE_CHARS = 500
 
+# The prompt asks for 120 to 150 words. Anything far past that is
+# dropped rather than shown as a wall of text.
+MAX_STORY_WORDS = 260
+MAX_STORY_TITLE_CHARS = 120
+
 # Structured Outputs allows up to 1,000 enum values across the schema
 # and 15,000 characters for large enums. Participant names appear in
 # two enums, so fall back to plain strings (still validated below)
@@ -198,12 +203,25 @@ def build_output_schema(names):
             },
             "conversationDynamic": {"type": "string"},
             **{field: string_list() for field in LIST_FIELDS},
+            "story": {
+                "type": "object",
+                # The outline comes first so the model plans the plot
+                # before writing it. It is never shown to anyone.
+                "properties": {
+                    "outline": {"type": "string"},
+                    "title": {"type": "string"},
+                    "text": {"type": "string"},
+                },
+                "required": ["outline", "title", "text"],
+                "additionalProperties": False,
+            },
         },
         "required": [
             "funniest",
             "participants",
             "conversationDynamic",
             *LIST_FIELDS,
+            "story",
         ],
         "additionalProperties": False,
     }
@@ -281,9 +299,39 @@ def validate_ai_analysis(data, expected_names):
     return all(is_string_list(data.get(field)) for field in LIST_FIELDS)
 
 
+def clean_story(story):
+    """
+    Return a usable story, or None.
+
+    The story is a bonus: unlike the checks above, a bad one is left out
+    instead of failing the whole analysis.
+    """
+    if not isinstance(story, dict):
+        return None
+
+    title = story.get("title")
+    text = story.get("text")
+
+    if not isinstance(title, str) or not isinstance(text, str):
+        return None
+
+    title = title.strip()
+    text = text.strip()
+
+    if (
+        not title
+        or not text
+        or len(title) > MAX_STORY_TITLE_CHARS
+        or len(text.split()) > MAX_STORY_WORDS
+    ):
+        return None
+
+    return {"title": title, "text": text}
+
+
 def to_response_contract(data):
     """Convert the participant array into the name-keyed frontend shape."""
-    return {
+    result = {
         "funniest": {
             "person": data["funniest"]["person"],
             "confidence": data["funniest"]["confidence"],
@@ -299,6 +347,13 @@ def to_response_contract(data):
         "conversationDynamic": data["conversationDynamic"],
         **{field: data[field] for field in LIST_FIELDS},
     }
+
+    story = clean_story(data.get("story"))
+
+    if story is not None:
+        result["story"] = story
+
+    return result
 
 
 def parse_ai_response(text, expected_names):
@@ -418,6 +473,38 @@ Analyze:
 8. Overall conversation dynamic
 9. Interesting observations
 10. A short playful summary of each participant
+11. A very short fictional story starring the participants
+
+Story rules:
+- Write 120 to 150 words of fiction, with a short funny title.
+- Cast the participants as the characters, using their exact names.
+- Base each character only on their personality profile: the humor style,
+  texting style and role you wrote for them in participants.
+- Invent a completely new situation with its own setting and plot. The
+  story must not be about this chat, and nobody in it should be texting.
+- Do not reuse anything specific from the messages: no quotes, catchphrases,
+  inside jokes, recurring topics, events, plans, places, or objects.
+- Turn habits into behavior in the story's world. Someone who sends many
+  short messages becomes someone who can't stop adding one more thing;
+  someone who replies late turns up after it is all over.
+- Use one simple, familiar premise that anyone can picture, such as a
+  road trip, a camping trip gone wrong, a surprise party, or a small heist.
+- First write story.outline: one or two sentences saying who wants what,
+  what goes wrong, and how it ends. Then write story.text to follow it.
+- The story must make sense to a stranger who has never seen this chat.
+  Give it a clear goal, a problem, and an ending that resolves that problem.
+- Each event must follow from the one before it. No random events, no
+  non-sequiturs, and nothing that contradicts an earlier sentence.
+- The world works normally. The humor comes from how these personalities
+  handle the situation, not from surreal or random details.
+- Write in plain, simple sentences. Keep to one setting and one storyline.
+- Give at most three people real roles in the plot. Anyone else gets one
+  brief, relevant moment.
+- Keep it affectionate and funny. Teasing is fine. Nothing cruel, nothing
+  sexual, and no graphic violence.
+- Do not use private details as plot points, such as health, money,
+  addresses, or relationship problems.
+- In a big group, focus on the main few people and give others cameos.
 
 Conversation data:
 

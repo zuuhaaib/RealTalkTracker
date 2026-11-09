@@ -57,6 +57,7 @@ def valid_output(names=("Alex", "Sam")):
         "recurringTopics": ["food"],
         "insideJokesOrPatterns": [],
         "interestingObservations": ["lots of plans"],
+        "story": {"title": "the heist", "text": "Alex planned it. Sam was late."},
     }
 
 
@@ -197,6 +198,59 @@ class ParseTests(unittest.TestCase):
         )
         self.assertEqual(result["funniest"]["person"], "Alex")
 
+    def test_story_is_returned_trimmed(self):
+        data = valid_output()
+        data["story"] = {"title": "  the heist ", "text": " Sam was late. "}
+
+        self.assertEqual(
+            self.parse(data)["story"],
+            {"title": "the heist", "text": "Sam was late."},
+        )
+
+    def test_story_outline_is_planned_first_and_never_returned(self):
+        story = build_output_schema({"Alex", "Sam"})["properties"]["story"]
+
+        self.assertEqual(list(story["properties"]), ["outline", "title", "text"])
+
+        data = valid_output()
+        data["story"]["outline"] = "the plan"
+
+        self.assertEqual(set(self.parse(data)["story"]), {"title", "text"})
+
+    def test_bad_story_is_dropped_but_analysis_survives(self):
+        long_text = " ".join(["word"] * (ai_analysis.MAX_STORY_WORDS + 1))
+        cases = {
+            "missing": None,
+            "wrong type": "once upon a time",
+            "number title": {"title": 5, "text": "story"},
+            "null text": {"title": "title", "text": None},
+            "empty title": {"title": "  ", "text": "story"},
+            "empty text": {"title": "title", "text": "   "},
+            "too long": {"title": "title", "text": long_text},
+            "long title": {"title": "t" * 121, "text": "story"},
+        }
+
+        for label, story in cases.items():
+            with self.subTest(label):
+                data = valid_output()
+
+                if story is None:
+                    del data["story"]
+                else:
+                    data["story"] = story
+
+                result = self.parse(data)
+
+                self.assertNotIn("error", result)
+                self.assertNotIn("story", result)
+                self.assertEqual(result["funniest"]["person"], "Alex")
+
+    def test_story_at_the_word_limit_is_kept(self):
+        data = valid_output()
+        data["story"]["text"] = " ".join(["word"] * ai_analysis.MAX_STORY_WORDS)
+
+        self.assertIn("story", self.parse(data))
+
     def test_invalid_outputs_are_rejected(self):
         cases = {}
 
@@ -325,6 +379,23 @@ class AnalyzeConversationTests(unittest.TestCase):
             result["sample"],
             {"excerpts": 1, "sampledMessages": 10, "readableMessages": 10},
         )
+
+    def test_prompt_asks_for_a_safe_short_story(self):
+        _, client = self.run_analysis(
+            chat(10),
+            fake_response(text=json.dumps(valid_output())),
+        )
+
+        prompt = client.responses.create.call_args.kwargs["input"]
+
+        self.assertIn("120 to 150 words", prompt)
+        self.assertIn("only on their personality profile", prompt)
+        self.assertIn("Do not reuse anything specific from the messages", prompt)
+        self.assertNotIn("real running jokes", prompt)
+        self.assertIn("must make sense to a stranger", prompt)
+        self.assertIn("must follow from the one before it", prompt)
+        self.assertIn("Nothing cruel, nothing", prompt)
+        self.assertIn("private details", prompt)
 
     def test_two_person_prompt_does_not_get_group_rules(self):
         _, client = self.run_analysis(

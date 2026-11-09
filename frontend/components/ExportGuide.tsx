@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 
-const code = "rounded bg-bg px-1.5 py-0.5 text-[0.9em] text-accent";
+const code = "rounded-md bg-bg-2 px-1.5 py-0.5 text-[0.9em] font-semibold";
 
 type Platform = {
   id: string;
@@ -90,10 +90,10 @@ const platforms: Platform[] = [
     after: (
       <div className="mt-8 grid gap-6 md:grid-cols-2">
         <figure>
-          <figcaption className="mb-2 text-sm text-muted">
-            expected layout · fictional example
+          <figcaption className="mb-2 text-base">
+            expected layout, fictional example
           </figcaption>
-          <pre className="overflow-x-auto rounded-xl border border-line bg-bg p-4 text-sm leading-6">
+          <pre className="overflow-x-auto rounded-2xl bg-bg-2 p-5 text-base leading-7">
             {`Alex
 hello
 Dec 15, 2025 3:07 pm
@@ -102,7 +102,7 @@ deeply insightful
 Dec 15, 2025 3:06 pm`}
           </pre>
         </figure>
-        <p className="self-end text-sm leading-relaxed text-muted">
+        <p className="self-end leading-relaxed">
           Export layouts can vary. If yours doesn&rsquo;t copy into this
           structure, it may not work with the current parser. Renaming a .json
           or .html file to .txt won&rsquo;t convert it.
@@ -145,7 +145,7 @@ export default function ExportGuide() {
       <div
         role="tablist"
         aria-label="Platform"
-        className="flex flex-wrap gap-2"
+        className="flex flex-wrap gap-1"
       >
         {platforms.map((item, index) => {
           const selected = index === active;
@@ -164,10 +164,8 @@ export default function ExportGuide() {
               tabIndex={selected ? 0 : -1}
               onClick={() => setActive(index)}
               onKeyDown={onKeyDown}
-              className={`min-h-11 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                selected
-                  ? "bg-accent text-on-accent"
-                  : "border border-line text-muted hover:text-ink"
+              className={`min-h-12 rounded-full px-5 py-2.5 text-lg font-semibold transition-[background-color,color,transform] duration-150 active:scale-95 ${
+                selected ? "bg-ink text-bg" : "bg-bg-2 text-ink hover:bg-accent"
               }`}
             >
               {item.label}
@@ -181,24 +179,28 @@ export default function ExportGuide() {
         role="tabpanel"
         aria-labelledby={`tab-${platform.id}`}
         tabIndex={0}
-        className="card mt-5 p-6 sm:p-8"
+        className="mt-8"
       >
         {platform.intro && (
-          <p className="mb-6 max-w-2xl leading-relaxed text-muted">
+          <p className="mb-8 max-w-2xl text-lg leading-relaxed">
             {platform.intro}
           </p>
         )}
 
-        <ol className="space-y-5">
+        <ol className="space-y-6">
           {platform.steps.map((step, index) => (
-            <li key={index} className="flex gap-4">
+            <li
+              key={index}
+              className="flex gap-5 motion-safe:animate-[fade-up_400ms_var(--ease-out)_both]"
+              style={{ animationDelay: `${index * 60}ms` }}
+            >
               <span
                 aria-hidden="true"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-panel-2 text-sm font-semibold text-accent"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-lg font-bold text-on-accent"
               >
                 {index + 1}
               </span>
-              <p className="max-w-2xl pt-0.5 leading-relaxed">{step}</p>
+              <p className="max-w-2xl pt-1.5 text-lg leading-relaxed">{step}</p>
             </li>
           ))}
         </ol>

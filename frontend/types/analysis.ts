@@ -66,6 +66,13 @@ export type AIAnalysis = {
   insideJokesOrPatterns: string[];
   interestingObservations: string[];
 
+  // A short fictional story starring the participants. Left out when the
+  // model's story wasn't usable.
+  story?: {
+    title: string;
+    text: string;
+  };
+
   // How much of the chat the AI actually saw.
   sample?: {
     excerpts: number;
