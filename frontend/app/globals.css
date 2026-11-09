@@ -14,7 +14,6 @@
   --ink: #1d1b16;
   --muted: #5d584c;
   --accent: #2f5d3a;
-  --accent-hover: #264d30;
   --on-accent: #f7f2e8;
   --button: #1d1b16;
   --button-hover: #3a352c;
@@ -32,7 +31,6 @@
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
   --color-on-accent: var(--on-accent);
   --color-tangerine: var(--tangerine);
   --color-pop: var(--pop);

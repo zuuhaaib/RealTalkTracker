@@ -20,8 +20,9 @@ export default function AuthNav({ current }: { current: string }) {
     const supabase = getBrowserSupabase();
     if (!supabase) return;
 
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
-
+    // The first event (INITIAL_SESSION) reads the session saved in this
+    // browser, with no network call. That's enough to pick the header
+    // buttons: /analyze and the backend each verify the sign-in properly.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {

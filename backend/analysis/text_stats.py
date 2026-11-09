@@ -3,6 +3,13 @@ from collections import Counter
 from datetime import datetime
 
 from analysis.message_content import split_message_content
+from emoji_ranges import (
+    VARIATION_SELECTORS,
+    ZERO_WIDTH_JOINER,
+    is_emoji_code,
+    is_regional_indicator,
+    is_skin_tone,
+)
 
 
 STOP_WORDS = {
@@ -30,27 +37,12 @@ def extract_words(text: str):
     ]
 
 
-ZERO_WIDTH_JOINER = 0x200D
-VARIATION_SELECTORS = {0xFE0E, 0xFE0F}
-
-
-def is_skin_tone(code: int):
-    return 0x1F3FB <= code <= 0x1F3FF
-
-
-def is_regional_indicator(code: int):
-    return 0x1F1E6 <= code <= 0x1F1FF
-
-
 def is_emoji_base(code: int):
     # Skin tones and flag letters only count as part of a sequence.
     if is_skin_tone(code) or is_regional_indicator(code):
         return False
 
-    return (
-        0x1F000 <= code <= 0x1FAFF
-        or 0x2600 <= code <= 0x27BF
-    )
+    return is_emoji_code(code)
 
 
 def extract_emojis(text: str):

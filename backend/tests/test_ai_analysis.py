@@ -303,7 +303,7 @@ class AnalyzeConversationTests(unittest.TestCase):
             ),
         ):
             result = analyze_conversation_with_ai(
-                messages, statistics, {}, text_stats, {}, [],
+                messages, statistics, {}, text_stats,
                 account="user:user-1",
             )
 
@@ -377,8 +377,6 @@ class AnalyzeConversationTests(unittest.TestCase):
                 {"participants": {"Alex": {}, "Sam": {}}},
                 {},
                 {},
-                {},
-                [],
                 account="user:user-1",
             )
 
@@ -410,8 +408,6 @@ class AnalyzeConversationTests(unittest.TestCase):
                 {"participants": {"Alex": {}, "Sam": {}}},
                 {},
                 {},
-                {},
-                [],
             )
 
         self.assertIn("error", result)

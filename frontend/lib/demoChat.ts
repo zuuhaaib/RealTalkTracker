@@ -61,15 +61,6 @@ export function getDemoStats(messages: DemoMessage[] = demoMessages) {
   };
 }
 
-export function formatGap(seconds: number | null) {
-  if (seconds === null) return "n/a";
-  if (seconds < 60) return `${Math.round(seconds)} sec`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
-
-  // "4 hr", not "4.0 hr".
-  return `${Number((seconds / 3600).toFixed(1))} hr`;
-}
-
 // "16:08" -> "4:08 pm"
 export function formatClock(at: string) {
   const [hours, minutes] = at.slice(11, 16).split(":").map(Number);

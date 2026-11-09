@@ -3,7 +3,6 @@ import logging
 import math
 import os
 
-from dotenv import load_dotenv
 from openai import APITimeoutError, OpenAI
 
 from daily_quota import (
@@ -14,8 +13,6 @@ from daily_quota import (
 )
 from analysis.message_content import split_message_content
 
-
-load_dotenv()
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -117,14 +114,17 @@ def build_message_sample(
     messages,
     max_messages=MAX_SAMPLE_MESSAGES,
     target_windows=TARGET_SAMPLE_WINDOWS,
+    readable_messages=None,
 ):
     """
     Return chronological excerpts of consecutive readable messages.
 
     Each excerpt records its position among the readable messages so
-    the model can tell that excerpts are separated by gaps.
+    the model can tell that excerpts are separated by gaps. Pass
+    readable_messages when they have already been extracted.
     """
-    readable_messages = get_readable_messages(messages)
+    if readable_messages is None:
+        readable_messages = get_readable_messages(messages)
 
     ranges = select_window_ranges(
         len(readable_messages),
@@ -302,16 +302,12 @@ def to_response_contract(data):
 
 
 def parse_ai_response(text, expected_names):
-    """Decode and validate the model output."""
-    text = text.strip()
+    """
+    Decode and validate the model output.
 
-    # Accept JSON wrapped in a Markdown code block.
-    if text.startswith("```") and text.endswith("```"):
-        lines = text.splitlines()
-
-        if len(lines) >= 3:
-            text = "\n".join(lines[1:-1]).strip()
-
+    Structured Outputs returns bare JSON, so there is no Markdown code
+    fence to strip.
+    """
     try:
         data = json.loads(text)
     except (json.JSONDecodeError, RecursionError):
@@ -464,11 +460,13 @@ def analyze_conversation_with_ai(
     statistics,
     behavior,
     text_stats,
-    sentiment,
-    topics,
     account=None,
 ):
-    message_sample = build_message_sample(messages)
+    readable_messages = get_readable_messages(messages)
+    message_sample = build_message_sample(
+        messages,
+        readable_messages=readable_messages,
+    )
 
     if not message_sample:
         return {
@@ -491,7 +489,7 @@ def analyze_conversation_with_ai(
     }
 
     expected_names = set(statistics.get("participants", {}))
-    readable_count = len(get_readable_messages(messages))
+    readable_count = len(readable_messages)
     sampled_count = sum(
         len(excerpt["messages"])
         for excerpt in message_sample
@@ -503,8 +501,6 @@ def analyze_conversation_with_ai(
         "behavior": behavior,
         "metricDefinitions": METRIC_DEFINITIONS,
         "textStats": ai_text_stats,
-        "sentiment": sentiment,
-        "topics": topics,
         "readableMessageCount": readable_count,
         "sampledMessageCount": sampled_count,
         "messageSample": message_sample,

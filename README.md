@@ -275,7 +275,7 @@ Emoji counting is a small range-based approximation, not full Unicode emoji supp
 
 AI analysis is automatic when the service and daily allowance are available.
 
-The backend sends participant names, calculated statistics, text statistics, and selected message excerpts to OpenAI.
+The backend sends participant names, calculated statistics, text statistics, and selected message excerpts to OpenAI. The text statistics (top words and emojis, links, questions, media and late-night counts, each person's longest message) are only computed for the AI; they aren't returned to the browser.
 
 How the sample is chosen:
 
@@ -367,8 +367,6 @@ backend/
     activity.py
     text_stats.py
     ai_analysis.py
-    sentiment.py         experimental, unused
-    topics.py            experimental, unused
   tests/
 
 frontend/
@@ -402,9 +400,7 @@ frontend/
 
 The analyze page manages selected files, API requests, and page composition. Components render individual sections. Shared response types live in `types/analysis.ts`.
 
-### Experimental modules
-
-`sentiment.py` and `topics.py` are hooks for possible future local analysis. Nothing imports them: `main.py` passes empty `sentiment` and `topics` values to the response and the AI prompt. Their dependencies (transformers, sentence-transformers, scikit-learn) are deliberately left out of `requirements.txt`, so importing either one in the deployed backend would fail.
+### How the backend is organized
 
 The backend validates uploads and runs decoding, parsing, statistics, and AI processing in a worker thread. `daily_quota.py` handles the persistent AI allowance.
 

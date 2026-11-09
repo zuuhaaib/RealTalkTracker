@@ -79,6 +79,25 @@ class UploadLimitTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["messageCount"], 2)
         self.assertEqual(self.ai_mock.call_count, 1)
 
+    async def test_response_has_only_fields_the_site_uses(self):
+        result = await self.upload("chat.txt", CHAT)
+
+        self.assertEqual(
+            set(result),
+            {
+                "platform",
+                "messageCount",
+                "statistics",
+                "behavior",
+                "awards",
+                "activity",
+                "aiAnalysis",
+            },
+        )
+
+        # The AI still gets the text statistics.
+        self.assertIn("Alex", self.ai_mock.call_args.args[3])
+
     async def test_sixth_recognized_chat_is_rate_limited(self):
         for _ in range(5):
             result = await self.upload("chat.txt", CHAT)

@@ -1,6 +1,8 @@
 import re
 from datetime import datetime
 
+from emoji_ranges import VARIATION_SELECTORS, ZERO_WIDTH_JOINER, is_emoji_code
+
 
 TIMESTAMP_PATTERN = re.compile(
     r"^[A-Z][a-z]{2} \d{1,2}, \d{4} "
@@ -42,12 +44,9 @@ def is_emoji_sequence(text):
     for char in text:
         code = ord(char)
 
-        if (
-            0x1F000 <= code <= 0x1FAFF
-            or 0x2600 <= code <= 0x27BF
-        ):
+        if is_emoji_code(code):
             has_emoji = True
-        elif code in (0x200D, 0xFE0E, 0xFE0F):
+        elif code == ZERO_WIDTH_JOINER or code in VARIATION_SELECTORS:
             continue
         else:
             return False

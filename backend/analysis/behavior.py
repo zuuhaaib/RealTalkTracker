@@ -1,11 +1,8 @@
 from datetime import datetime
+from statistics import median
 
 
 CONVERSATION_GAP_HOURS = 6
-
-
-def parse_time(timestamp):
-    return datetime.fromisoformat(timestamp)
 
 
 def get_behavior_statistics(messages):
@@ -24,19 +21,19 @@ def get_behavior_statistics(messages):
                 "responseTimes": []
             }
 
-    previous_message = None
+    previous_sender = None
+    previous_time = None
 
     for msg in messages:
         sender = msg["sender"]
-        current_time = parse_time(msg["timestamp"])
+        # Parse each timestamp once and carry it to the next message.
+        current_time = datetime.fromisoformat(msg["timestamp"])
 
-        if previous_message is None:
+        if previous_time is None:
             stats[sender]["conversationStarts"] += 1
-            previous_message = msg
+            previous_sender = sender
+            previous_time = current_time
             continue
-
-        previous_sender = previous_message["sender"]
-        previous_time = parse_time(previous_message["timestamp"])
 
         gap_seconds = (current_time - previous_time).total_seconds()
         gap_hours = gap_seconds / 3600
@@ -53,26 +50,15 @@ def get_behavior_statistics(messages):
         else:
             stats[sender]["responseTimes"].append(gap_seconds)
 
-        previous_message = msg
+        previous_sender = sender
+        previous_time = current_time
 
     for sender, sender_stats in stats.items():
         response_times = sender_stats["responseTimes"]
 
-        if response_times:
-            sorted_times = sorted(response_times)
-            middle = len(sorted_times) // 2
-
-            if len(sorted_times) % 2 == 0:
-                median = (
-                    sorted_times[middle - 1]
-                    + sorted_times[middle]
-                ) / 2
-            else:
-                median = sorted_times[middle]
-
-            sender_stats["medianResponseTimeSeconds"] = round(median, 2)
-        else:
-            sender_stats["medianResponseTimeSeconds"] = None
+        sender_stats["medianResponseTimeSeconds"] = (
+            round(median(response_times), 2) if response_times else None
+        )
 
         del sender_stats["responseTimes"]
 

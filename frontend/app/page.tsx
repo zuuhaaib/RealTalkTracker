@@ -9,9 +9,9 @@ import {
 import {
   demoMessages,
   formatClock,
-  formatGap,
   getDemoStats,
 } from "../lib/demoChat";
+import { formatDuration } from "../lib/format";
 
 const stats = getDemoStats();
 
@@ -267,7 +267,7 @@ function DemoChat() {
           <div className="flex flex-col-reverse justify-end gap-1">
             <dt className="text-xs text-muted">sam’s slowest reply</dt>
             <dd className="font-display text-2xl font-semibold tabular-nums">
-              {formatGap(stats.sam.slowestReplySeconds)}
+              {formatDuration(stats.sam.slowestReplySeconds)}
             </dd>
           </div>
           <div className="flex flex-col-reverse justify-end gap-1">

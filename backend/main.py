@@ -1,6 +1,11 @@
 import logging
 import os
 
+from dotenv import load_dotenv
+
+# Load backend/.env before anything reads the environment.
+load_dotenv()
+
 from fastapi import FastAPI, UploadFile, File, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
@@ -90,11 +95,8 @@ def process_chat(contents: bytes, account: str):
     behavior = get_behavior_statistics(messages)
     awards = get_awards(stats, behavior)
     activity = get_activity_statistics(messages)
+    # Only the AI uses these; they aren't part of the response.
     text_stats = get_text_statistics(messages)
-
-    # Keep these hooks for future local sentiment/topic analysis.
-    sentiment = {}
-    topics = []
 
     try:
         ai_analysis = analyze_conversation_with_ai(
@@ -102,8 +104,6 @@ def process_chat(contents: bytes, account: str):
             stats,
             behavior,
             text_stats,
-            sentiment,
-            topics,
             account=account,
         )
     except Exception as exc:
@@ -124,9 +124,6 @@ def process_chat(contents: bytes, account: str):
         "behavior": behavior,
         "awards": awards,
         "activity": activity,
-        "textStats": text_stats,
-        "sentiment": sentiment,
-        "topics": topics,
         "aiAnalysis": ai_analysis,
     }
 

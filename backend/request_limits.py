@@ -12,12 +12,10 @@ SHARED_BUCKET = "shared-analysis-limit"
 class AnalysisLimiter:
     def __init__(
         self,
-        requests_per_window=5,
         window_seconds=60,
         max_concurrent=2,
         max_tracked_buckets=10_000,
     ):
-        self.requests_per_window = requests_per_window
         self.window_seconds = window_seconds
         self.max_concurrent = max_concurrent
 
@@ -44,10 +42,6 @@ class AnalysisLimiter:
                 )
 
             self._active += 1
-
-    def consume_attempt(self, bucket):
-        """Consume an allowance only after a chat has been recognized."""
-        self.consume_attempts([(bucket, self.requests_per_window)])
 
     def consume_attempts(self, limits):
         """
@@ -110,21 +104,6 @@ class AnalysisLimiter:
                 raise RuntimeError("No active analysis slot to release.")
 
             self._active -= 1
-
-    def acquire(self, bucket):
-        """
-        Compatibility helper for callers that need both limits together.
-
-        The upload endpoint uses the separate methods so validation can
-        happen before consuming the rate allowance.
-        """
-        self.acquire_slot()
-
-        try:
-            self.consume_attempt(bucket)
-        except Exception:
-            self.release()
-            raise
 
 
 analysis_limiter = AnalysisLimiter()

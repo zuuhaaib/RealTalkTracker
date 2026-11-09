@@ -1,27 +1,10 @@
 import type { AnalyzeResponse } from "../types/analysis";
+import { formatDuration } from "../lib/format";
 import { SectionHeading } from "./ui";
 
 // Identity colours for people in the share bar and on their panels.
 // Each clears 3:1 against the cream ground, the bar for graphics.
 const personColors = ["#2f5d3a", "#e2632a", "#3b5b8c", "#a8841b", "#b8506a", "#2a8279"];
-
-function formatResponseTime(seconds: number | null) {
-  if (seconds === null) return "n/a";
-
-  if (seconds < 60) {
-    return `${Math.round(seconds)} sec`;
-  }
-
-  if (seconds < 3600) {
-    return `${Math.round(seconds / 60)} min`;
-  }
-
-  if (seconds < 86400) {
-    return `${(seconds / 3600).toFixed(1)} hr`;
-  }
-
-  return `${(seconds / 86400).toFixed(1)} days`;
-}
 
 export default function ParticipantStatsSection({
   statistics,
@@ -129,7 +112,7 @@ export default function ParticipantStatsSection({
                 />
                 <Stat
                   label={`median ${gapLabel}`}
-                  value={formatResponseTime(behavior?.medianResponseTimeSeconds ?? null)}
+                  value={formatDuration(behavior?.medianResponseTimeSeconds ?? null)}
                 />
                 {/* API key stays doubleTexts; the label says what it counts. */}
                 <Stat
